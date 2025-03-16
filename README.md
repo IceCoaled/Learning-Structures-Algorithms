@@ -1,4 +1,4 @@
-# Learning-Sorting-Algorithms
+# Learning Data Structures & Algorithms
 just learning some basic data structures and algorithms
 
 ### Requirements
