@@ -2,18 +2,9 @@
 
 
 template <typename T>
-class SortingAlgorithms: protected AlgorithmsBase<T>
+	requires NumericConstraint<T>
+class SortingAlgorithms: public AlgorithmsBase<T>
 {
-private:
-	using AlgorithmsBase<T>::GetSzArrayValue;
-	using AlgorithmsBase<T>::ArrayRef;
-	using AlgorithmsBase<T>::TimerRef;
-	using AlgorithmsBase<T>::TempBufferRef;
-	using AlgorithmsBase<T>::InitArray;
-	using AlgorithmsBase<T>::PrintArray;
-	using AlgorithmsBase<T>::PrintAlgoName;
-	using AlgorithmsBase<T>::ResetArray;
-	using AlgorithmsBase<T>::XorSwap;
 
 public:
 	SortingAlgorithms() = default;
@@ -37,42 +28,45 @@ private:
 	{
 		/// Print Bubble Sort header, Initialize array. 
 		/// Print original array
-		PrintAlgoName("Bubble Sort");
-		InitArray();
-		PrintArray();
+		this->PrintAlgoName("Bubble Sort");
+		this->InitArray();
 
-		/// Get our array references
-		T szArray = GetSzArrayValue();
-		auto& array = ArrayRef();
+		// Edge case check
+		if ( this->szArray == 0 || this->szArray == 1 )
+		{
+			return;
+		}
+
+		this->PrintArray();
 
 		/// Start Timer
-		TimerRef().Start();
+		this->timer.Start();
 
 		/// Sort array
-		for ( T i = 0; i < szArray - 1; ++i )
+		for ( T i = 0; i < this->szArray - 1; ++i )
 		{
-			for ( T j = 0; j < szArray - i - 1; ++j )
+			for ( T j = 0; j < this->szArray - i - 1; ++j )
 			{
-				if ( array[ j ] > array[ j + 1 ] )
+				if ( this->array[ j ] > this->array[ j + 1 ] )
 				{
-					XorSwap( array[ j ], array[ j + 1 ] );
+					this->XorSwap( this->array[ j ], this->array[ j + 1 ] );
 				}
 			}
 
 		}
 
 		/// End Timer
-		TimerRef().Stop();
-		double et = TimerRef().GetElapsed();
+		this->timer.Stop();
+		double et = this->timer.GetElapsed();
 
 		/// Print time taken to sort
 		std::cout << "<Bubble Sort Performance>\n";
 		std::cout << "Total Time Taken : " << et << " us.\n";
-		std::cout << "array Size Of : " << szArray << ".\n";
-		std::cout << et / szArray << " us, per element.\n\n";
+		std::cout << "array Size Of : " << this->szArray << ".\n";
+		std::cout << et / this->szArray << " us, per element.\n\n";
 
 		/// Print sorted array
-		PrintArray( false );
+		this->PrintArray( false );
 		std::cout << "\n\n";
 	}
 
@@ -84,28 +78,31 @@ private:
 	{
 		/// Print Selection Sort header, Initialize array. 
 		/// Print original array
-		PrintAlgoName( "Selection Sort" );
-		InitArray();
-		PrintArray();
+		this->PrintAlgoName( "Selection Sort" );
+		this->InitArray();
 
-		/// Get our array references
-		T szArray = GetSzArrayValue();
-		auto& array = ArrayRef();
+		// Edge case check
+		if ( this->szArray == 0 || this->szArray == 1 )
+		{
+			return;
+		}
+
+		this->PrintArray();
 
 		/// Start Timer
-		TimerRef().Start();
+		this->timer.Start();
 
 		/// Sort array
 		T minValueIndex = 0;
-		for ( T i = 0; i < szArray - 1; ++i )
+		for ( T i = 0; i < this->szArray - 1; ++i )
 		{
 			/// Reset minValueIndex
 			minValueIndex = i;
 
 			/// Iterate through unsorted portion
-			for ( T j = i + 1; j < szArray; ++j )
+			for ( T j = i + 1; j < this->szArray; ++j )
 			{
-				if ( array[ j ] <= array[ minValueIndex ] )
+				if ( this->array[ j ] <= this->array[ minValueIndex ] )
 				{
 					minValueIndex = j;
 				}
@@ -113,22 +110,22 @@ private:
 			if ( minValueIndex != i )
 			{
 				/// Make swap
-				XorSwap( array[ i ], array[ minValueIndex ] );
+				this->XorSwap( this->array[ i ], this->array[ minValueIndex ] );
 			}
 		}
 
 		/// End Timer
-		TimerRef().Stop();
-		double et = TimerRef().GetElapsed();
+		this->timer.Stop();
+		double et = this->timer.GetElapsed();
 
 		/// Print time taken to sort
 		std::cout << "<Selection Sort Performance>\n";
 		std::cout << "Total Time Taken : " << et << " us.\n";
-		std::cout << "array Size Of : " << szArray << ".\n";
-		std::cout << et / szArray << " us, per element.\n\n";
+		std::cout << "array Size Of : " << this->szArray << ".\n";
+		std::cout << et / this->szArray << " us, per element.\n\n";
 
 		/// Print sorted array
-		PrintArray( false );
+		this->PrintArray( false );
 		std::cout << "\n\n";
 	}
 
@@ -141,44 +138,47 @@ private:
 	{
 		/// Print Insertion Sort header, Initialize array. 
 		/// Print original array
-		PrintAlgoName( "Insertion Sort" );
-		InitArray();
-		PrintArray();
+		this->PrintAlgoName( "Insertion Sort" );
+		this->InitArray();
 
-				/// Get our array references
-		T szArray = GetSzArrayValue();
-		auto& array = ArrayRef();
+		// Edge case check
+		if ( this->szArray == 0 || this->szArray == 1 )
+		{
+			return;
+		}
 
+		this->PrintArray();
 
 		/// Start Timer
-		TimerRef().Start();
+		this->timer.Start();
 
-		for ( T i = 1; i <= szArray - 1; i++ )
+		T j;
+		T comparand;
+		for ( T i = 1; i <= this->szArray - 1; i++ )
 		{
-			T key = array[ i ];
-			T j = i - 1;
-
-			while ( j >= 0 && array[ j ] > key )
+			comparand = this->array[ i ];
+			j = i - 1;
+			while ( j >= 0 && this->array[ j ] > comparand )
 			{
-				array[ j + 1 ] = array[ j ];
+				this->array[ j + 1 ] = this->array[ j ];
 				j--;
 			}
 
-			array[ j + 1 ] = key;
+			this->array[ j + 1 ] = comparand;
 		}
 
-		/// End TimerRef()
-		TimerRef().Stop();
-		double et = TimerRef().GetElapsed();
+		/// End this->timer
+		this->timer.Stop();
+		double et = this->timer.GetElapsed();
 
 		/// Print time taken to sort
 		std::cout << "<Insertion Sort Performance>\n";
 		std::cout << "Total Time Taken : " << et << " us.\n";
-		std::cout << "array Size Of : " << szArray << ".\n";
-		std::cout << et / szArray << " us, per element.\n\n";
+		std::cout << "array Size Of : " << this->szArray << ".\n";
+		std::cout << et / this->szArray << " us, per element.\n\n";
 
 		/// Print sorted array
-		PrintArray( false );
+		this->PrintArray( false );
 		std::cout << "\n\n";
 	}
 
@@ -195,22 +195,19 @@ private:
 	/// <returns></returns>
 	T QuickPartition( T pLow, T pHigh )
 	{
-		/// Get array reference
-		auto& array = ArrayRef();
 		T i = pLow - 1;
 
 		for ( T j = pLow; j < pHigh; ++j )
 		{
-			if ( array[ j ] <= array[ pHigh ] )
+			if ( this->array[ j ] <= this->array[ pHigh ] )
 			{
-				i += 1;
-				XorSwap( array[ j ], array[ i ] );
+				this->XorSwap( this->array[ j ], this->array[ ++i ] );
 			}
 		}
 
-		XorSwap( array[ i + 1 ], array[ pHigh ] );
+		this->XorSwap( this->array[ ++i ], this->array[ pHigh ] );
 
-		return i + 1;
+		return i;
 	}
 
 	/// <summary>
@@ -237,37 +234,40 @@ private:
 	{
 		/// Print Quick Sort header, Initialize array. 
 		/// Print original array
-		PrintAlgoName( "Quick Sort" );
-		InitArray();
-		PrintArray();
+		this->PrintAlgoName( "Quick Sort" );
+		this->InitArray();
 
-		/// Get our array references
-		T szArray = GetSzArrayValue();
-		auto& array = ArrayRef();
+		// Edge case check
+		if ( this->szArray == 0 || this->szArray == 1 )
+		{
+			return;
+		}
+
+		this->PrintArray();
 
 		/// Setup piviot high low
-		const T pHigh = szArray - 1;
+		const T pHigh = this->szArray - 1;
 		const T pLow = 0;
 
 
 		/// Start Timer
-		TimerRef().Start();
+		this->timer.Start();
 
 		/// Sort array
 		QuickSort( pLow, pHigh );
 
 		/// End Timer
-		TimerRef().Stop();
-		double et = TimerRef().GetElapsed();
+		this->timer.Stop();
+		double et = this->timer.GetElapsed();
 
 		/// Print time taken to sort
 		std::cout << "<Quick Sort Performance>\n";
 		std::cout << "Total Time Taken : " << et << " us.\n";
-		std::cout << "array Size Of : " << szArray << ".\n";
-		std::cout << et / szArray << " us, per element.\n\n";
+		std::cout << "array Size Of : " << this->szArray << ".\n";
+		std::cout << et / this->szArray << " us, per element.\n\n";
 
 		/// Print sorted array
-		PrintArray( false );
+		this->PrintArray( false );
 		std::cout << "\n\n";
 	}
 
@@ -277,35 +277,38 @@ private:
 	{
 		/// Print Merge Sort header, Initialize array. 
 		/// Print original array
-		PrintAlgoName( "Merge Sort" );
-		InitArray();
-		PrintArray();
+		this->PrintAlgoName( "Merge Sort" );
+		this->InitArray();
 
-		/// Get buffer reference and array size
-		auto& tempBuffer = TempBufferRef();
-		T szArray = GetSzArrayValue();
+		// Edge case check
+		if ( this->szArray == 0 || this->szArray == 1 )
+		{
+			return;
+		}
+
+		this->PrintArray();
 		
 		/// Set tempBuffer size
-		tempBuffer.resize( szArray );
+		this->tempBuffer.resize( ( this->szArray / 2 ) + 1 );
 
 		/// Start Timer
-		TimerRef().Start();
+		this->timer.Start();
 
 		/// Call the traditional merge sort
-		MergeSort( 0, szArray - 1 );
+		MergeSort( 0, this->szArray - 1 );
 
 		/// End Timer
-		TimerRef().Stop();
-		double et = TimerRef().GetElapsed();
+		this->timer.Stop();
+		double et = this->timer.GetElapsed();
 
 		/// Print time taken to sort
 		std::cout << "<Merge Sort Performance>\n";
 		std::cout << "Total Time Taken : " << et << " us.\n";
-		std::cout << "array Size Of : " << szArray << ".\n";
-		std::cout << et / szArray << " us, per element.\n\n";
+		std::cout << "array Size Of : " << this->szArray << ".\n";
+		std::cout << et / this->szArray << " us, per element.\n\n";
 
 		/// Print sorted array
-		PrintArray( false );
+		this->PrintArray( false );
 		std::cout << "\n\n";
 	}
 
@@ -315,7 +318,7 @@ private:
 		if ( start >= end ) return;
 
 		/// Calculate the middle point to divide the array into two halves
-		const T mid = start + ( end - start ) / 2;
+		const T mid = std::midpoint( start, end );
 
 		/// Recursively sort the first half
 		MergeSort( start, mid );
@@ -329,13 +332,10 @@ private:
 
 	void Merge( T start, T mid, T end )
 	{
-		auto& tempBuffer = TempBufferRef();
-		auto& array = ArrayRef();
-		
 		/// Copy elements to the temp buffer
 		for ( T i = start; i <= end; i++ )
 		{
-			tempBuffer[ i ] = array[ i ];
+			this->tempBuffer[ i ] = this->array[ i ];
 		}
 		
 		/// Initial index of first, second halves
@@ -347,19 +347,19 @@ private:
 		/// Merge the two halves back into the original array
 		while ( i <= mid && j <= end )
 		{
-			if ( tempBuffer[ i ] <= tempBuffer[ j ] )
+			if ( this->tempBuffer[ i ] <= this->tempBuffer[ j ] )
 			{
-				array[ k++ ] = tempBuffer[ i++ ];
+				this->array[ k++ ] = this->tempBuffer[ i++ ];
 			} else
 			{
-				array[ k++ ] = tempBuffer[ j++ ];
+				this->array[ k++ ] = this->tempBuffer[ j++ ];
 			}
 		}
 
 		/// Copy remaining elements of the first half, if any
 		while ( i <= mid )
 		{
-			array[ k++ ] = tempBuffer[ i++ ];
+			this->array[ k++ ] = this->tempBuffer[ i++ ];
 		}
 	}
 
