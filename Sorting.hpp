@@ -154,14 +154,14 @@ private:
 
 		T j;
 		T comparand;
-		for ( T i = 1; i <= this->szArray - 1; i++ )
+		for ( T i = 1; i <= this->szArray - 1; ++i )
 		{
 			comparand = this->array[ i ];
 			j = i - 1;
 			while ( j >= 0 && this->array[ j ] > comparand )
 			{
 				this->array[ j + 1 ] = this->array[ j ];
-				j--;
+				--j;
 			}
 
 			this->array[ j + 1 ] = comparand;
@@ -289,7 +289,7 @@ private:
 		this->PrintArray();
 		
 		/// Set tempBuffer size
-		this->tempBuffer.resize( ( this->szArray / 2 ) + 1 );
+		this->tempBuffer.resize( this->szArray );
 
 		/// Start Timer
 		this->timer.Start();
