@@ -7,6 +7,16 @@
 #include <string>
 #include <random>
 #include <chrono>
+#include <limits>
+#include <numeric>
+#include <type_traits>
+
+
+template < typename T>
+concept NumericConstraint = 
+std::numeric_limits<T>::is_specialized && 
+std::is_arithmetic_v<T>;
+
 
 
 class HighResTimer
@@ -43,9 +53,10 @@ public:
 
 												 
 template <typename T>
+	requires NumericConstraint<T>
 class AlgorithmsBase
 {
-private:
+protected:
 
 	/// <summary>
 	/// Size of array
@@ -55,12 +66,12 @@ private:
 	/// <summary>
 	/// array to be sorted
 	/// </summary>
-	std::vector<T> array = std::vector<T>( 0 );
+	std::vector<T> array;
 
 	/// <summary>
 	/// Temp buffer for sorting
 	/// </summary>
-	std::vector<T> tempBuffer = std::vector<T>( 0 );
+	std::vector<T> tempBuffer;
 
 	/// <summary>
 	/// Sort timer
