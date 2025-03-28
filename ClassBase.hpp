@@ -12,12 +12,8 @@
 #include <type_traits>
 #include <memory>
 #include <cassert>
-#include <__msvc_string_view.hpp>
 
-template < typename T>
-concept NumericConstraint = 
-std::numeric_limits<T>::is_specialized && 
-std::is_arithmetic_v<T>;
+
 
 
 
@@ -51,6 +47,12 @@ public:
 		return  Microseconds( stop - start ).count();
 	}
 };
+
+
+template < typename T>
+concept NumericConstraint =
+std::numeric_limits<T>::is_specialized &&
+std::is_arithmetic_v<T>;
 
 
 												 
@@ -263,6 +265,11 @@ protected:
 	/// </summary>
 	bool isListWrapped;
 
+	/// <summary>
+	/// Timer for algorithms
+	/// </summary>
+	HighResTimer timer;
+
 public:
 
 	LinkListBase(): head( nullptr ), current( nullptr ), numOfEntries( 0 ), isListWrapped( false )
@@ -290,7 +297,7 @@ public:
 			return false;
 		}
 		// Set current to the head
-		current = head
+		current = head;
 		return true;
 	}
 
@@ -368,7 +375,7 @@ public:
 	{
 		// Set our loop entry to the second
 		// Entry in the list
-		StringNode<T>* entry = head->flink;
+		StringNode<T>* entry = head->flink->flink;
 
 		// If the list is wrapped we can use the
 		// Head as our stop signal
