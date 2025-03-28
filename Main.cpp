@@ -1,27 +1,21 @@
+
 #include "Sorting.hpp"
-//#include "Searching.hpp"
-//#include "SortingTests.h"
+#include "Searching.hpp"
+
 
 
 
 
 int main()
 {	
-	/// Our sorting algorithms class
-	
-	// auto* sAlgoS = new SortingAlgorithms<int>();
-	// sAlgoS->TestAllAlgorithms();
-	// delete sAlgoS;
-	
-	
-	///-------------------------------------------------------///
-	/// The tests for each sorting algorithm in sorting class
+	/// Our sorting algorithms class	
+	//auto sortAlgoS = std::make_unique< SortingAlgorithms< int > >();
+	//sortAlgoS->TestAllAlgorithms();
 
-        // TestBubbleSort();
-	// TestSelectionSort();
-	// TestInsertionSort();
-	// TestQuickSort();
-	// TestMergeSort();
+
+	/// Our searching algorithms class
+	//auto searchAlgoS = std::make_unique< SearchAlogrithms< int > >();
+	//searchAlgoS->TestAllSearchAlgorithms();
 
 	system( "pause" );
     return 0;
