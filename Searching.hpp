@@ -284,15 +284,16 @@ private:
 	}
 
 
-
 	/// <summary>
-	/// Gets random values to search for, returns an
-	/// Array of values the size of the input parameter
+	/// Initializes and sorts the array
+	/// Then gets the search values for
+	/// Linear/Binary search
+	/// We then get/set our sub array 
+	/// Details for sliding window search
 	/// </summary>
-	/// <param name="numOfSearches">The number of search values to generate</param>
-	/// <returns>An array of search values from sorted array</returns>
-	void GetSearchValues()
+	void InitData()
 	{
+		MergeSortInit();
 		/// Generator and device
 		std::random_device rd;
 		std::mt19937 gen( rd() );
@@ -301,6 +302,8 @@ private:
 		std::uniform_int_distribution<std::size_t> sizeDist( 0, this->szArray );
 		/// Set the distribution for sliding window sub array
 		std::uniform_int_distribution<std::size_t> sADist( 0, this->szArray - 21 );
+		/// Set the distribution for the sub array length
+		std::uniform_int_distribution<std::size_t> sizeSumDist( 11, 20 );
 
 
 		// Set the sub array start index
@@ -309,31 +312,15 @@ private:
 		sValues[ 0 ] = this->array[ sizeDist( gen ) ];
 		// Set the linear search value
 		sValues[ 1 ] = this->array[ sizeDist( gen ) ];
-		
-	
-		SetSearchSum( gen );
-	}
 
-	/// <summary>
-	/// Gets a sum of values from a random length in the array
-	/// Using the index assigned to sSumValue
-	/// </summary>
-	/// <param name="gen"></param>
-	void SetSearchSum( std::mt19937& gen )
-	{
-		std::uniform_int_distribution<std::size_t> sizeSumDist( 11, 20 );
+		// Get random sub array length
 		sSumLen = sizeSumDist( gen );
-		const std::size_t arrayIndex = sSumStart;
-		for ( std::size_t i = arrayIndex; i < sSumLen + arrayIndex; ++i )
+
+		// Calculate sub array sum, yes there is functions for this
+		// But this is simple for our learning and works
+		for ( std::size_t i = sSumLen; i < sSumLen + arrayIndex; ++i )
 		{
 			sSumValue += this->array[ i ];
 		}
-	}
-
-
-	void InitData()
-	{
-		MergeSortInit();
-		GetSearchValues();
 	}
 };
