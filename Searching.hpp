@@ -46,7 +46,7 @@ public:
 			PrintResults( lSResult.value() );
 		}
 		auto sWResult = SlidingWindow();
-		if ( sWResult.has_value() && std::get< 0 >( sWResult.value() ) == sSumStart )
+		if ( sWResult.has_value() && std::get< 0 >( sWResult.value() ) == sSumStart && std::get< 1 >( sWResult.value() ) == sSumLen )
 		{
 			SWPrintResults( sWResult.value() );
 		}
@@ -190,7 +190,7 @@ private:
 
 		if ( cSum == sSumValue )
 		{
-			return std::make_tuple( pLower, pUpper - pLower );
+			return std::make_tuple( pLower, pUpper - pLower + 1 );
 		} else
 		{
 			std::cout << "Failed To Find Sub Array In Data\n";
@@ -318,7 +318,7 @@ private:
 
 		// Calculate sub array sum, yes there is functions for this
 		// But this is simple for our learning and works
-		for ( std::size_t i = sSumLen; i < sSumLen + arrayIndex; ++i )
+		for ( std::size_t i = sSumStart; i < sSumLen + sSumStart; ++i )
 		{
 			sSumValue += this->array[ i ];
 		}
