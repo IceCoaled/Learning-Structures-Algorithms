@@ -12,87 +12,117 @@
 #include <type_traits>
 #include <memory>
 #include <cassert>
+#include <print>
+#include <algorithm>
 
 
-
-
-
+/**
+* @brief Timer class used for timing our algorithms
+*
+* Provides high-resolution timing capabilities using either
+* std::chrono::high_resolution_clock or std::chrono::steady_clock,
+* depending on which one is steady.
+*/
 class HighResTimer
 {
+	/// @brief Type alias for the clock, choosing high_resolution_clock if it's steady, otherwise steady_clock
 	using Timer = typename std::conditional<std::chrono::high_resolution_clock::is_steady,
 		std::chrono::high_resolution_clock, std::chrono::steady_clock>;
+
+	/// @brief Type alias for microsecond duration representation
 	using Microseconds = std::chrono::duration<double, std::micro>;
 
 private:
-	Timer::type::time_point start;
-	Timer::type::time_point stop;
+	Timer::type::time_point start; ///< Timestamp when timing started
+	Timer::type::time_point stop;  ///< Timestamp when timing stopped
 
 public:
+	/**
+	* @brief Default constructor
+	*
+	* Creates a timer instance without starting it
+	*/
 	HighResTimer() = default;
+
+	/**
+	* @brief Default destructor
+	*/
 	~HighResTimer() = default;
 
+	/**
+	* @brief Start the timer
+	*
+	* Records the current time as the starting point
+	* and initializes the stop time to the same value
+	*/
 	void Start()
 	{
 		start = Timer::type::now();
 		stop = start;
 	}
 
+	/**
+	* @brief Stop the timer
+	*
+	* Records the current time as the stopping point
+	*/
 	void Stop()
 	{
 		stop = Timer::type::now();
 	}
 
+	/**
+	* @brief Get the elapsed time
+	*
+	* Calculates the time difference between start and stop points
+	*
+	* @return The elapsed time in microseconds
+	*/
 	double GetElapsed() const
 	{
-		return  Microseconds( stop - start ).count();
+		return Microseconds( stop - start ).count();
 	}
 };
 
 
+/*
+* @brief Constraint for our algorithm base class
+* @tparam T this is required to be a integer or floating point
+* variable, or custom one that implements
+* std::numeric_limits::specialized characteristics properly
+*/
 template < typename T>
 concept NumericConstraint =
 std::numeric_limits<T>::is_specialized &&
-std::is_arithmetic_v<T>;
+std::is_arithmetic_v<T>();
 
 
-												 
+/**
+* @brief Base class for searching and sorting algorithmns
+* It includes all the nessary functions needed for initializing
+* a vector of numerics with uniform randomness. This also includes
+* an xor based swap function, and the function needed to print the
+* array of data.
+* 
+* @tparam T Numeric type that meets the NumericConstraint requirement
+*/
 template <typename T>
 	requires NumericConstraint<T>
 class AlgorithmsBase
 {
 protected:
-
-	/// <summary>
-	/// Size of array
-	/// </summary>
-	T szArray = 0;
-
-	/// <summary>
-	/// array to be sorted
-	/// </summary>
-	std::vector<T> array;
-
-	/// <summary>
-	/// Temp buffer for sorting
-	/// </summary>
-	std::vector<T> tempBuffer;
-
-	/// <summary>
-	/// Sort timer
-	/// </summary>
-	HighResTimer timer = HighResTimer();
+	std::size_t szArray = 0; //< Size of array 
+	std::vector<T> array; //< Our array
+	std::vector<T> tempBuffer; //< Temp buffer for quick sort
+	HighResTimer timer = HighResTimer(); //< timer for timing algorithms
 
 
 public:
-	T GetSzArrayValue() const { return szArray; }
-	std::vector<T>& ArrayRef() { return array; }
-	std::vector<T>& TempBufferRef() { return tempBuffer; }
-	HighResTimer& TimerRef() { return timer; }
 
 
-	/// <summary>
-	/// Initialize array with random size and elements
-	/// </summary>
+	/**
+	* @brief Initialize array with random size and elements
+	*/
 	void InitArray()
 	{
 		/// Create the generator
@@ -116,9 +146,9 @@ public:
 		}
 	}
 
-	/// <summary>
-	/// Resets array details
-	/// </summary>
+	/**
+	* @brief Resets array details
+	*/
 	void ResetArray()
 	{
 		tempBuffer.clear();
@@ -126,12 +156,14 @@ public:
 		szArray = 0;
 	}
 
-	/// <summary>
-	/// Xor Swap algorithm
-	/// This is used as to not use a temporary variable
-	/// </summary>
-	/// <param name="a"></param>
-	/// <param name="b"></param>
+	/**
+	* @brief Xor Swap algorithm
+	*
+	* This is used as to not use a temporary variable
+	*
+	* @param a First value to swap
+	* @param b Second value to swap
+	*/
 	void XorSwap( T& a, T& b ) const
 	{
 		/// Short circuit
@@ -144,151 +176,192 @@ public:
 	}
 
 
-	/// <summary>
-	/// Print array elements.
-	/// If original is true, print original array,
-	/// else print sorted array.
-	/// Prints in traditional array format with 16 values per line.
-	/// </summary>
-	/// <param name="original"></param>
+	/**
+	* @brief Print array elements
+	*
+	* If original is true, print original array,
+	* else print sorted array.
+	* Prints in traditional array format with 16 values per line.
+	*
+	* @param original If true, prints original array; if false, prints sorted array
+	*/
 	void PrintArray( const bool& original = true ) const
 	{
 		const T elementsPerLine = 16;  /// Number of elements to print per line
 
-		std::cout << "================================================================" << std::endl;
+		std::println( "================================================================" );
 		if ( original )
 		{
-			std::cout << "Original array = ";
+			std::print( "Original array = " );
 		} else
 		{
-			std::cout << "Sorted array = ";
+			std::print( "Sorted array = " );
 		}
 
-		std::cout << "{ " << std::endl;
+		std::print( "{ \n" );
 
 		for ( T i = 0; i < szArray; i++ )
 		{
 			/// Print the current element
-			std::cout << array[ i ];
+			std::print("{}", array[ i ]);
 
 			/// Decide what separator to use
 			if ( i == szArray - 1 )
 			{
 				/// Last element gets no comma
-				std::cout << "";
+				std::print( "" );
 			} else
 			{
-				std::cout << ", ";
+				std::print( ", " );
 
 				/// Add a line break after every elementsPerLine elements (except at the end)
 				if ( ( i + 1 ) % elementsPerLine == 0 && i < szArray - 1 )
 				{
-					std::cout << std::endl << " ";  // New line with a space for indentation
+					std::println( "\r " );  // New line with a space for indentation
 				}
 			}
 		}
 
-		std::cout << " };" << std::endl;
-		std::cout << "================================================================" << std::endl;
+		std::println( " };" );
+		std::println( "================================================================" );
 	}
 
 
-	/// <summary>
-	/// Prints the sort name
-	/// </summary>
-	/// <param name="sortName"></param>
+	/**
+	* @brief Prints the sort name
+	*
+	* @param sortName Name of the sorting algorithm to display
+	*/
 	void PrintAlgoName( const std::string& sortName ) const
 	{
-		std::cout << "================================================================" << std::endl;
-		std::cout << sortName << std::endl;
+		std::println( "================================================================" );
+		std::println( "{}", sortName );
 	}
 };
 
 
-
+/*
+* @brief Constraint for our linked list base class
+* 
+* @tparam T this is required to be std::string or std::wstring
+*/
 template< typename T >
 concept StringType = std::is_same_v< T, std::string > || 
 std::is_same_v< T, std::wstring >;
 
 
+
+/**
+* @brief Node structure for a doubly-linked list of string elements
+* Contains a name of string type, an entry number, and pointers to the next
+* and previous nodes in the linked list.
+*
+* @tparam T must be std::string or std::wstring
+*/
 template< typename T >
 	requires StringType< T >
 struct StringNode
 {
-	T name;
-	int entryNum;
-	StringNode* flink;
-	StringNode* blink;
+	T name;              //< The string data stored in this node
+	int entryNum = 0; //< Entry number/identifier for this node
+	StringNode* flink = nullptr; //< Forward link to the next node
+	StringNode* blink = nullptr; //< Backward link to the previous node
 
-	/// <summary>
-	/// Default constructor
-	/// </summary>
-	StringNode(): entryNum( 0 ), flink( nullptr ), blink( nullptr ) {}
+	/**
+	* @brief Default constructor
+	*
+	* Creates an empty node with default values
+	*/
+	StringNode() = default;
 
-	/// <summary>
-	/// New entry constructor
-	/// </summary>
-	/// <param name="entryNumber"></param>
-	/// <param name="newFlink"></param>
-	/// <param name="newBlink"></param>
-	StringNode( int entryNumber,T newName ,StringNode* newBlink ): 
-		entryNum( entryNumber ), name( newName ), flink( nullptr ), blink( newBlink ) {}
+	/**
+	* @brief Parameterized constructor
+	*
+	* Creates a node with specified values
+	*
+	* @param entryNumber The identifier number for this node
+	* @param newName The string data to store in this node
+	* @param newBlink Pointer to the previous node in the list
+	*/
+	StringNode( int entryNumber, T newName, StringNode* newBlink ):
+		entryNum( entryNumber ), name( newName ), blink( newBlink ) {}
+
+	/**
+	* @brief Destructor
+	*
+	* Cleans up the node by nullifying pointers and resetting the entry number
+	* and clearing string
+	*/
+	~StringNode()
+	{
+		flink = blink = nullptr;
+		entryNum = 0;
+		name.clear();
+	}
 };
 
 
 
-
+/**
+* @brief Linked list base class. Has all 
+* the basic functionality needed allocate,
+* deallocate, and print entries.
+* 
+* @tparam T must be std::string or std::wstring
+* 
+* @details This class DOES NOT use the head for
+* any data, this is just for learning purposes
+*/
 template< typename T >
 	requires StringType< T >
 class LinkListBase
 {
 protected:
-	/// <summary>
-	/// Head of our linked list
-	/// </summary>
-	StringNode<T>* head;
 
-	/// <summary>
-	/// Current entry of our list
-	/// This helps use with adding new entries
-	/// </summary>
-	StringNode<T>* current;
-
-	/// <summary>
-	/// Number of entries in our list
-	/// </summary>
-	int numOfEntries;
-
-	/// <summary>
-	/// Flag to tell if list is wrapped
-	/// Back to head
-	/// </summary>
-	bool isListWrapped;
-
-	/// <summary>
-	/// Timer for algorithms
-	/// </summary>
-	HighResTimer timer;
+	StringNode<T>* head; //< Head of linked list, for mine i dont actually assign data to head
+	StringNode<T>* current; //< This is just to help with ease of creating new entries
+	int numOfEntries; //< Current number of entries in list( head is not included )
+	bool isListWrapped; //< Flag for telling wether the linked list is wrapped or not
+	HighResTimer timer;	//< timer for timing algorithms
 
 public:
 
-	LinkListBase(): head( nullptr ), current( nullptr ), numOfEntries( 0 ), isListWrapped( false )
+	/**
+	* @brief Constructor for class, this calls InitHead
+	* To initialize the class variables
+	* 
+	* @param isWrapped flag to tell class wether 
+	* its a wrapped list or not
+	*/
+	explicit LinkListBase(const bool& isWrapped )
 	{
-		InitHead();
+		InitHead( isWrapped );
 	}
+
+	/**
+	* @brief Deconstructor, this calls RemoveAllEntries
+	* to clean up memory
+	*/
 	~LinkListBase()
 	{
 		RemoveAllEntries();
 	}
 
 
-	/// <summary>
-	/// Initializes the head of the linked list
-	/// Sets current to head
-	/// </summary>
-	/// <returns></returns>
-	bool InitHead()
+	/**
+	* @brief Initializes the head of the linked list
+	*
+	* Sets current to head
+	*
+	* @return true if the head was created else false
+	*/
+	bool InitHead(const bool& isWrapped )
 	{
+		this->isListWrapped = isWrapped;
+		this->head = nullptr;
+		this->current = nullptr;
+		this->numOfEntries = 0;
+		
 		// Allocate the head
 		head = new StringNode<T>();
 		if ( head == nullptr )
@@ -302,11 +375,12 @@ public:
 	}
 
 
-	/// <summary>
-	/// Adds new entry to linked list
-	/// </summary>
-	/// <param name="name"></param>
-	/// <returns></returns>
+	/**
+	* @brief Adds new entry to linked list
+	*
+	* @tparam name The name to add to the new entry
+	* @return true if new entry was created else false
+	*/
 	bool AddEntry( T name )
 	{
 		// Allocate new entry
@@ -322,14 +396,16 @@ public:
 		if ( isListWrapped )
 		{
 			current->flink = head;
+			head->blink = current;
 		}		
 		return true;
 	}
 
-	/// <summary>
-	/// Print the entry number and name 
-	/// Of each entry in the linked list
-	/// </summary>
+
+	/**
+	* @brief Print the entry number and name 
+	* of each entry in the linked list
+	*/
 	void PrintAllEntries()
 	{
 		// Set our loop entry to the first
@@ -344,10 +420,7 @@ public:
 			while ( entry != head )
 			{
 				// Print entry details
-				std::cout << "==============\n";
-				std::cout << "Entry number : " << entry->entryNum << "\n";
-				std::cout << "Entry name : " << entry->name << "\n";
-				std::cout << "==============\n";
+				PrintEntryDetails( entry );
 				// Push our entry to the next one
 				entry = entry->flink;
 			}
@@ -356,21 +429,21 @@ public:
 			while ( entry != nullptr )
 			{
 				// Print entry details
-				std::cout << "==============\n";
-				std::cout << "Entry number : " << entry->entryNum << "\n";
-				std::cout << "Entry name : " << entry->name << "\n";
-				std::cout << "==============\n";
+				PrintEntryDetails( entry );
 				// Push our entry to the next one
 				entry = entry->flink;
 			}
 		}
+		entry = nullptr;
 	}
 
 
-	/// <summary>
-	/// This deletes all entries in the linked list
-	/// Including the head and resets count to zero
-	/// </summary>
+	/**
+	* @brief Deletes all entries in the linked list
+	*
+	* deletes head and sets head / current to nullptr,
+	* Sets count to zero
+	*/
 	void RemoveAllEntries()
 	{
 		// Set our loop entry to the second
@@ -413,22 +486,23 @@ public:
 	* To implement as we can add sorting and
 	* Searching algorithms to help these functions
 	*/
-	virtual void SortEntriesByName() = 0;
-	virtual T RemoveEntry( T name ) = 0;
+	virtual void MergeSortEntries() = 0;
+	/*virtual T RemoveEntry( T name ) = 0;
 	virtual T RemoveEntry( int entryNum ) = 0;
 	virtual void RemoveEntry( T name ) = 0;
 	virtual void RemoveEntry( int entryNum ) = 0;
-	virtual void FlipList() = 0;
+	virtual void FlipList() = 0;*/
 
 protected:
-
-	/// <summary>
-	/// Print the entries details
-	/// We do a null check as this pointer will be
-	/// Passed in from outside this class
-	/// </summary>
-	/// <param name="entry"></param>
-	/// <returns></returns>
+	/**
+	* @brief Print the entries details
+	*
+	* We do a null check as this pointer will be
+	* passed in from outside this class
+	*
+	* @param entry The entry to print
+	* @return true if entry wasn't null, else false
+	*/
 	bool PrintEntryDetails( StringNode<T>* entry ) const
 	{
 		// Null check
@@ -438,11 +512,13 @@ protected:
 		}
 
 		// Print entry details
-		std::cout << "==============\n";
-		std::cout << "Entry number : " << entry->entryNum << "\n";
-		std::cout << "Entry name : " << entry->name << "\n";
-		std::cout << "==============\n";
-
+		// We just auto cast to std::string 
+		// as we are using std::wstring as well
+		std::println( "==============" );
+		std::println(
+		"Entry number: {}, Entry Name: {}",
+		entry->entryNum,std::string( entry->name.begin(), entry->name.end() ) );
+		std::println( "==============" );
 		return true;
 	}
 };
