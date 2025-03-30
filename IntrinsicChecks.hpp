@@ -23,7 +23,6 @@
 * @brief This class is for us to check cpuid bits 
 * for AVX2 and BMI1 support for intrinsic 
 * vector / bitminipulation functions.
-* I have compiler checks in place but this is backup.
 * 
 * @details both amd and intel use the same registers 
 * and bits for both these checks
