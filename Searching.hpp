@@ -2,42 +2,55 @@
 #include <array>
 
 
-/*
-* For the sliding window search,
-* We get a random number for an
-* Index into the array, We then
-* Use use this and get a random
-* Number for a sub array length
-* And get the sum of the sub array
-* 
-* The min sub array length is 11
-* This is to eliminate edge cases
-* For the purpose of just learning 
-* The algorithm itself
-* 
-* We are also just returning array indexes
-* For the result as to use for double
-* Checking we got the correct result
-*/
 
+/**
+* @brief Class implementing various searching algorithms
+*
+* Contains implementations of common searching algorithms including
+* Linear Search, Binary Search, and Sliding Window Search.
+* The class handles initialization of search data, execution of
+* searches, and performance measurement.
+*
+* @tparam T Numeric type that meets the NumericConstraint requirement
+* 
+* @details For the sliding window search, we get a random number for an
+* index into the array, We then use this and get a random 
+* number for a sub array length and get the sum of the sub array.
+*
+* The min sub array length is minimum of 11. This is to 
+* eliminate edge cases for the purpose of just learning the algorithm itself
+*
+* We are also just returning array indexes for the result; as to use for 
+* checking if we got the correct result
+*/
 template <typename T>
 	requires NumericConstraint<T>
 class SearchAlogrithms: public AlgorithmsBase<T>
 {
 private:
-	std::array<T, 2> sValues;
-	T sSumValue;
-	std::size_t sSumStart;
-	std::size_t sSumLen;
+	std::array<T, 2> sValues; //< search values for linear and binary
+	T sSumValue; //< sum of sub array
+	std::size_t sSumStart; //< starting index of sub array
+	std::size_t sSumLen; //< length of sub array
 
 public:
 
+	/**
+	* @brief Constructor that initializes search data
+	*/
 	SearchAlogrithms()
 	{
 		InitData();
 	}
+
+	/**
+	* @brief Default destructor
+	*/
 	~SearchAlogrithms() = default;
 
+	/**
+	* @brief Executes all search algorithms and validates their results
+	*/
 	void TestAllSearchAlgorithms()
 	{
 		auto lSResult = LinearSearch();
@@ -54,16 +67,16 @@ public:
 		if ( bSResult.has_value() && this->array[ bSResult.value() ] == sValues[ 0 ] )
 		{
 			PrintResults( bSResult.value() );
-		}		
+		}
 	}
 
 private:
 
-
-	/// <summary>
-	/// Linear search algorithm
-	/// </summary>
-	/// <returns>std::nullopt_t if not found, else index of value to search for</returns>
+	/**
+	* @brief Linear search algorithm
+	*
+	* @return std::nullopt if not found, else index of value to search for
+	*/
 	std::optional<std::size_t> LinearSearch()
 	{
 		// Print algorithm name
@@ -74,7 +87,7 @@ private:
 
 		/// Start Timer
 		this->timer.Start();
-		
+
 		for ( int i = 0; i < this->szArray; ++i )
 		{
 			if ( this->array[ i ] == sValues[ 1 ] )
@@ -97,10 +110,11 @@ private:
 		}
 	}
 
-	/// <summary>
-	/// Binary search algorithm
-	/// </summary>
-	/// <returns>std::nullopt_t if not found, else index of value to search for</returns>
+	/**
+	* @brief Binary search algorithm
+	*
+	* @return std::nullopt if not found, else index of value to search for
+	*/
 	std::optional<std::size_t> BinarySearch()
 	{
 		// Print algorithm name
@@ -111,7 +125,7 @@ private:
 
 		/// Start Timer
 		this->timer.Start();
-		
+
 		/// Our pointer window
 		std::size_t pLower = 0;
 		std::size_t pUpper = this->szArray - 1;
@@ -126,7 +140,7 @@ private:
 			{
 				result = mid;
 				break;
-			} else if ( sValues[ 0 ] > this->array[ mid ]  )
+			} else if ( sValues[ 0 ] > this->array[ mid ] )
 			{
 				pLower = mid + 1;
 				mid = std::midpoint( pLower, pUpper );
@@ -147,24 +161,27 @@ private:
 		{
 			std::cout << "Failed To Find Value In Data\n";
 			return std::nullopt;
-		}		
+		}
 	}
 
 
-	/// <summary>
-	/// Sliding window search algorithm, in this context
-	/// We are using it to find the sub array that contains
-	/// The sum of values that sSumValues is
-	/// </summary>
-	/// <returns>std::nullopt_t if not found,Tuple, first var in the tuple is the 0th index of the subarray. The second is the length of the subarray</returns>
+	/**
+	* @brief Sliding window search algorithm
+	*
+	* In this context we are using it to find the sub array that contains
+	* the sum of values that equals sSumValue
+	*
+	* @return std::nullopt if not found, or a tuple where the first value is the
+	*         0th index of the subarray and the second is the length of the subarray
+	*/
 	std::optional<std::tuple<std::size_t, std::size_t>> SlidingWindow()
 	{
 		// Print algorithm name
 		this->PrintAlgoName( "Sliding Window Search" );
-		
+
 		/// Start Timer
 		this->timer.Start();
-		
+
 		/// Our pointer window
 		std::size_t pLower = 0;
 		std::size_t pUpper = 0;
@@ -176,7 +193,7 @@ private:
 		while ( cSum != sSumValue && pUpper < this->szArray )
 		{
 			if ( cSum > sSumValue || pUpper - pLower > sSumLen )
-			{				
+			{
 				cSum -= this->array[ pLower ];
 				++pLower;
 			} else
@@ -200,6 +217,9 @@ private:
 
 	///---------------Merge-Sort-Start---------------///
 
+	/**
+	* @brief Initializes and executes the Merge Sort algorithm
+	*/
 	void MergeSortInit()
 	{
 		this->InitArray();
@@ -214,6 +234,12 @@ private:
 		MergeSort( 0, this->szArray - 1 );
 	}
 
+	/**
+	* @brief Recursive Merge Sort implementation
+	*
+	* @param start Starting index of the array segment to sort
+	* @param end Ending index of the array segment to sort
+	*/
 	void MergeSort( T start, T end )
 	{
 		/// Base case: if the subarray has 0 or 1 element, it's already sorted
@@ -232,6 +258,13 @@ private:
 		Merge( start, mid, end );
 	}
 
+	/**
+	* @brief Merges two sorted subarrays into a single sorted array
+	*
+	* @param start Starting index of first subarray
+	* @param mid Ending index of first subarray
+	* @param end Ending index of second subarray
+	*/
 	void Merge( T start, T mid, T end )
 	{
 		/// Copy elements to the temp buffer
@@ -268,29 +301,38 @@ private:
 
 	///------------Class-Utils--------------///
 
+	/**
+	* @brief Prints performance results for search algorithms
+	*
+	* @param index The index where the value was found
+	*/
 	void PrintResults( const std::size_t& index )
 	{
-		std::cout << "<Performance>\n";
-		std::cout << "Total Time Taken : " << this->timer.GetElapsed() << " us.\n";
-		std::cout << "Index of Value: " << index << "\n";
+		std::println( "<Performance>" );
+		std::println( "Total Time Taken : {} us.", this->timer.GetElapsed() );
+		std::println( "Index of Value: {}", index );
 	}
 
+	/**
+	* @brief Prints performance results for sliding window search
+	*
+	* @param slidingWindowResult A tuple containing the start index and length of found subarray
+	*/
 	void SWPrintResults( const std::tuple<std::size_t, std::size_t>& slidingWindowResult )
 	{
-		std::cout << "<Performance>\n";
-		std::cout << "Total Time Taken : " << this->timer.GetElapsed() << " us.\n";
-		std::cout << "Index of sub array: " << std::get<0>( slidingWindowResult ) << "\n";
-		std::cout << "Length of sub array: " << std::get<1>( slidingWindowResult ) << "\n";
+		std::println( "<Performance>" );
+		std::println( "Total Time Taken : {} us.", this->timer.GetElapsed() );
+		std::println( "Index of sub array: {}", std::get<0>( slidingWindowResult ) );
+		std::println( "Length of sub array: {}", std::get<1>( slidingWindowResult ) );
 	}
 
 
-	/// <summary>
-	/// Initializes and sorts the array
-	/// Then gets the search values for
-	/// Linear/Binary search
-	/// We then get/set our sub array 
-	/// Details for sliding window search
-	/// </summary>
+	/**
+	* @brief Initializes and sorts the array
+	*
+	* Then gets the search values for Linear/Binary search
+	* We then get/set our sub array details for sliding window search
+	*/
 	void InitData()
 	{
 		MergeSortInit();
