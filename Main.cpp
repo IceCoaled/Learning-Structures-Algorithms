@@ -8,11 +8,6 @@
 
 int main()
 {	
-	if ( !CheckRequiredFeatures() )
-	{
-		throw std::runtime_error( "Failed AVX2 or BMI1 support check" );
-	}
-	
 	/// Our sorting algorithms class	
 	//auto sortAlgoS = std::make_unique< SortingAlgorithms< int > >();
 	//sortAlgoS->TestAllAlgorithms();
