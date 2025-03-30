@@ -2,7 +2,6 @@
 #include "Sorting.hpp"
 #include "Searching.hpp"
 #include "LinkedList.hpp"
-#include "IntrinsicCheck.hpp"
 
 
 
