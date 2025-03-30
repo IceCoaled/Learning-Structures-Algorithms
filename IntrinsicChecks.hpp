@@ -34,7 +34,7 @@ public:
     * @brief Checks if AVX2 and BMI1 are supported
     * @return true if both are else false
     */
-    bool CheckRequiredFeatures()
+    static bool CheckRequiredFeatures()
     {
         bool hasAVX2 = CPUFeatures::HasAVX2();
         bool hasBMI1 = CPUFeatures::HasBMI1();
