@@ -55,9 +55,6 @@ public:
 	* @brief This function runs all your functions on our linked list class,
 	* It asks for user input wether to sort the list or when youd like to 
 	* print the list.
-	* 
-	* Do not flip the list then try to use all the functions, quite a few 
-	* have not yet been adapted to run properly on the flipped list.
 	*/
 	constexpr void RunClassFunctions()
 	{
