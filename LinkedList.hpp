@@ -912,6 +912,16 @@ private:
 		return allNames.at( rdNameDist( gen ) );		
 	}
 
+
+	/**
+	* @brief This function uses co yield to return
+	* random names as we need them to generate new entries
+	* for the list
+	* 
+	* @return returns std::string or std::wstring depending
+	* on users template selection, they return one at a time
+	* as needed
+	*/
 	std::generator<T> GetRandomNameAll()
 	{
 		for( std::size_t i = 0; i < allNames.size(); ++i )
