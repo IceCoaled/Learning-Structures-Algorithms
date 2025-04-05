@@ -406,11 +406,18 @@ public:
 	* @brief Print the entry number and name 
 	* of each entry in the linked list
 	*/
-	void PrintAllEntries()
+	void PrintAllEntries( const bool flipped = false )
 	{
 		// Set our loop entry to the first
 		// Entry in the list
-		StringNode<T>* entry = head->flink;
+		StringNode<T>* entry = nullptr;
+		if ( !flipped )
+		{
+			entry = head->flink;
+		} else
+		{
+			entry = head->blink;
+		}
 
 		// If the list is wrapped we can use the
 		// Head as our stop signal
@@ -422,7 +429,13 @@ public:
 				// Print entry details
 				PrintEntryDetails( entry );
 				// Push our entry to the next one
-				entry = entry->flink;
+				if ( !flipped )
+				{
+					entry = entry->flink;
+				} else
+				{
+					entry = entry->blink;
+				}
 			}
 		} else
 		{
@@ -431,7 +444,13 @@ public:
 				// Print entry details
 				PrintEntryDetails( entry );
 				// Push our entry to the next one
-				entry = entry->flink;
+				if ( !flipped )
+				{
+					entry = entry->flink;
+				} else
+				{
+					entry = entry->blink;
+				}
 			}
 		}
 		entry = nullptr;
@@ -487,11 +506,10 @@ public:
 	* Searching algorithms to help these functions
 	*/
 	virtual void MergeSortEntries() = 0;
-	/*virtual T RemoveEntry( T name ) = 0;
-	virtual T RemoveEntry( int entryNum ) = 0;
-	virtual void RemoveEntry( T name ) = 0;
-	virtual void RemoveEntry( int entryNum ) = 0;
-	virtual void FlipList() = 0;*/
+	virtual T RemoveEntry( T name, const bool binarySearch ) = 0;
+	virtual int RemoveEntry( int entryNum, const bool binarySearch ) = 0;
+	virtual void FlipList() = 0;
+
 
 protected:
 	/**
