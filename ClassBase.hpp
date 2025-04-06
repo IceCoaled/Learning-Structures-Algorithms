@@ -11,9 +11,13 @@
 #include <numeric>
 #include <type_traits>
 #include <memory>
-#include <cassert>
+#include <cstring>
 #include <print>
 #include <algorithm>
+#include <array>
+
+// 0th index bit count for unsigned long long
+#define MAX_ULL_BITS 64
 
 
 /**
@@ -541,6 +545,495 @@ protected:
 	}
 };
 
+
+
+
+/**
+* @brief A compile-time accessible file data structure for managing file information.
+* This is for my next adventure in learning binary trees
+*
+* @details This structure is designed to be fully usable in constexpr contexts,
+* allowing compile-time construction, manipulation, and tree operations.
+* All methods are marked constexpr to enable compile-time evaluation where possible.
+* This design choice enables static verification and optimization by the compiler.
+*
+* The structure stores file names and paths as fixed-size character arrays,
+* and maintains hash keys for efficient comparison operations.
+* It organizes data in a binary tree structure via left and right child pointers.
+*
+* @note Memory management is crucial when working with this structure.
+* The struct owns its child pointers and is responsible for their deletion.
+*
+* @warning Not thread-safe. Concurrent access must be externally synchronized.
+*/
+struct FileData
+{
+private:
+	char fileName[ _MAX_PATH ] = { 0 };
+	char filePath[ _MAX_PATH ] = { 0 };
+	std::size_t nameKey = 0;
+	std::size_t pathKey = 0;
+	FileData* leftChild = nullptr;
+	FileData* rightChild = nullptr;
+
+public:
+
+	/**
+	* @brief Default constructor.
+	*
+	* Creates an empty FileData object with all members initialized to their default values.
+	*/
+	constexpr FileData() = default;
+
+	
+	/**
+	* @brief Move constructor.
+	*
+	* Constructs a FileData by taking ownership of the resources from another FileData object.
+	*
+	* @param otherData The FileData object to move from.
+	* @note This constructor is marked noexcept and will not throw exceptions.
+	*/
+	explicit constexpr FileData( FileData&& otherData ) noexcept
+	{
+		*this = std::exchange( *this, otherData );
+	}
+	
+	
+	/**
+	* @brief Copy constructor.
+	*
+	* Constructs a FileData by copying the contents of another FileData object.
+	*
+	* @param otherData The FileData object to copy from.
+	* @throw std::runtime_error If copying the file name or path fails, or if child nodes are null,
+	*                          or if the hash keys don't match after copying.
+	* @note This constructor is marked noexcept but can still throw exceptions from internal operations.
+	*/
+	explicit constexpr FileData( const FileData& otherData )
+	{
+		// Copy over our strings
+		if ( strncpy_s( fileName, _MAX_PATH, otherData.GetFileNameRVal(), _MAX_PATH ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy fileName to FileData struct" );
+		}
+
+		if ( strncpy_s( filePath, _MAX_PATH, otherData.GetFilePathRVal(), _MAX_PATH ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy filePath to FileData struct" );
+		}
+
+		// Set the child node pointers
+		this->leftChild = otherData.LeftChild();
+		this->rightChild = otherData.RightChild();
+
+		// A just in case check
+		if ( this->leftChild == nullptr || this->rightChild == nullptr )
+		{
+			throw std::runtime_error( "Child nodes are null" );
+		}
+
+		// Set our key values, we will check these
+		// After as well
+		this->nameKey = otherData.GetFileNameKey();
+		this->pathKey = otherData.GetFilePathKey();
+
+		if ( this->nameKey != otherData.GetFileNameKey() ||
+			 this->pathKey != otherData.GetFilePathKey() )
+		{
+			throw std::runtime_error( "Failed to set file name or path hash key" );
+		}
+	}
+
+	
+	/**
+	* @brief Constructs a FileData object with C-style string parameters.
+	*
+	* @param filePathIn The file path as a null-terminated string.
+	* @param fileNameIn The file name as a null-terminated string.
+	* @param lCIn Pointer to the left child node (default: nullptr).
+	* @param rCIn Pointer to the right child node (default: nullptr).
+	*
+	* @throws std::runtime_error If copying the file name or path fails.
+	*/
+	constexpr FileData( const char* filePathIn, const char* fileNameIn, FileData* lCIn = nullptr, FileData* rCIn = nullptr )
+	{
+		// Copy over our strings
+		if ( strncpy_s( fileName, _MAX_PATH - 1, fileNameIn, strlen( fileNameIn ) + sizeof( char ) ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy fileNameIn to FileData struct" );
+		}
+
+		if ( strncpy_s( filePath, _MAX_PATH - 1, filePathIn, strlen( filePathIn ) + sizeof( char ) ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy filePathIn to FileData struct" );
+		}
+		// Set the child node pointers
+		leftChild = lCIn;
+		rightChild = rCIn;
+		// Hash our name and path for keys
+		this->nameKey = HashKey( this->fileName );
+		this->pathKey = HashKey( this->filePath );
+	}
+
+	
+	/**
+	* @brief Constructs a FileData object with std::string parameters.
+	*
+	* @param filePathIn The file path as a std::string.
+	* @param fileNameIn The file name as a std::string.
+	* @param lCIn Pointer to the left child node (default: nullptr).
+	* @param rCIn Pointer to the right child node (default: nullptr).
+	*
+	* @throws std::runtime_error If copying the file name or path fails.
+	*/
+	constexpr FileData( const std::string_view filePathIn, const std::string_view fileNameIn, FileData* lCIn = nullptr, FileData* rCIn = nullptr )
+	{
+		// Copy over our strings
+		if ( strncpy_s( fileName, _MAX_PATH - 1, fileNameIn.data(), fileNameIn.size() + sizeof( char ) ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy fileNameIn to FileData struct" );
+		}
+
+		if ( strncpy_s( filePath, _MAX_PATH - 1, filePathIn.data(), filePathIn.size() + sizeof( char ) ) != 0 )
+		{
+			throw std::runtime_error( "Failed to copy filePathIn to FileData struct" );
+		}
+		// Set the child node pointers
+		leftChild = lCIn;
+		rightChild = rCIn;
+		// Hash our name and path for keys
+		this->nameKey = HashKey( fileName );
+		this->pathKey = HashKey( this->filePath );
+	}
+
+
+	/**
+	* @brief Pointer assignment operator.
+	*
+	* Assigns the content of a FileData pointer to this object.
+	*
+	* @param otherData Pointer to the FileData object to assign from.
+	* @return Pointer to this FileData after assignment.
+	* @note This operator is marked noexcept and will not throw exceptions.
+	*/
+	FileData* operator= ( const FileData* otherData ) noexcept
+	{
+		return *this = otherData;
+	}
+
+
+	/**
+	* @brief Copy assignment operator.
+	*
+	* Assigns the content of another FileData object to this object.
+	*
+	* @param otherData The FileData object to assign from.
+	* @return Reference to this FileData after assignment.
+	* @note This operator is marked noexcept and will not throw exceptions.
+	*/
+	FileData& operator= (  FileData& otherData ) noexcept
+	{
+		auto temp = FileData( otherData );
+		std::swap( *this, temp );
+		return *this;
+	}
+
+
+
+
+    /**
+	* @brief Move assignment operator.
+	*
+	* Assigns the content of another FileData object to this object using move semantics.
+	*
+	* @param otherData The FileData object to move-assign from.
+	* @return Reference to this FileData after assignment.
+	* @note This operator is marked noexcept and will not throw exceptions.
+	*/
+	FileData& operator= ( FileData&& otherData ) noexcept
+	{
+		std::swap( *this, otherData );
+		return *this;
+	}
+
+
+	/**
+	* @brief Destructor that cleans up child nodes.
+	*
+	* @details If this gets called it will cause a recursive deletion of all 
+	* nodes below the node this was called on in the tree.
+	*/
+	~FileData()
+	{
+		if ( this->leftChild != nullptr ) { delete this->leftChild; }
+		if ( this->rightChild != nullptr ) { delete this->rightChild; }
+	}
+
+	
+	/**
+	* @brief Gets the hash key for the file name.
+	*
+	* @return The hash key value for the file name.
+	*/
+	constexpr std::size_t GetFileNameKey() const&
+	{
+		return this->nameKey;
+	}
+
+	/**
+	* @brief Gets the hash key for the file path.
+	*
+	* @return The hash key value for the file path.
+	*/
+	constexpr std::size_t GetFilePathKey() const&
+	{
+		return this->pathKey;
+	}
+
+	/**
+	* @brief Gets the file name as a const char pointer (for rvalue references).
+	*
+	* @return Const pointer to the file name string.
+	*/
+	constexpr const char* GetFileNameRVal() const&
+	{
+		auto result = fileName;
+		return result;
+	}
+
+	/**
+	* @brief Gets the file name as a const char pointer.
+	*
+	* @return Const pointer to the file name string.
+	*/
+	constexpr const char* GetFileName() const
+	{
+		auto result = fileName;
+		return result;
+	}
+
+	/**
+	* @brief Gets the file path as a const char pointer (for rvalue references).
+	*
+	* @return Const pointer to the file path string.
+	*/
+	constexpr const char* GetFilePathRVal() const&
+	{
+		auto result = filePath;
+		return result;
+	}
+
+	/**
+	* @brief Gets the file path as a const char pointer.
+	*
+	* @return Const pointer to the file path string.
+	*/
+	constexpr const char* GetFilePath() const
+	{
+		auto result = filePath;
+		return result;
+	}
+
+	/**
+	* @brief Gets a pointer to the left child node.
+	*
+	* @return Pointer to the left child FileData object, or nullptr if no left child exists.
+	*/
+	constexpr FileData* LeftChild() const
+	{
+		return this->leftChild;
+	}
+
+	/**
+	* @brief Gets a reference to the left child node.
+	*
+	* @warning Will cause undefined behavior if leftChild is nullptr.
+	*
+	* @return Reference to the left child FileData object.
+	*/
+	constexpr FileData& LeftChildRef() const&
+	{
+		return *this->leftChild;
+	}
+
+	/**
+	* @brief Gets a pointer to the right child node.
+	*
+	* @return Pointer to the right child FileData object, or nullptr if no right child exists.
+	*/
+	constexpr FileData* RightChild() const
+	{
+		return this->rightChild;
+	}
+
+	/**
+	* @brief Gets a reference to the right child node.
+	*
+	* @warning Will cause undefined behavior if rightChild is nullptr.
+	*
+	* @return Reference to the right child FileData object.
+	*/
+	constexpr FileData& RightChildRef() const&
+	{
+		return *this->rightChild;
+	}
+
+	/**
+	* @brief Compares this FileData's name key with another key.
+	*
+	* @param otherKey The key to compare against.
+	* @return true if the keys match, false otherwise.
+	*/
+	constexpr bool CompareNameKeys( const std::size_t otherKey ) const
+	{
+		return this->nameKey == otherKey;
+	}
+
+	/**
+	* @brief Compares this FileData's path key with another key.
+	*
+	* @param otherKey The key to compare against.
+	* @return true if the keys match, false otherwise.
+	*/
+	constexpr bool ComparePathKeys( const std::size_t otherKey ) const
+	{
+		return this->pathKey == otherKey;
+	}
+private:
+	
+	/**
+	* @brief This is a hash algorithm i created
+	* you can find more on it at
+	* https://github.com/IceCoaled/UserMode-KernelMode-Asm-Functions/blob/main/CustomHash.asm
+	*/
+	constexpr std::size_t HashKey( char* filePathIn ) const
+	{
+		std::size_t hValue = 0x030153912FF;
+		char* sPtr = filePathIn;
+		std::size_t result = 0;
+
+		while ( *sPtr != '\0' )
+		{
+			{
+				result ^= static_cast< std::size_t >( *sPtr );
+				result *= hValue;
+				hValue -= result;
+				result = RoR( result, 0x0010 );
+				result <<= 0x0006;
+			}
+			++sPtr;
+		}
+		return result;
+	}
+
+	/**
+	* @brief Simple roll right bit manipulation for,
+	* our hash algorithim. ive also included roll 
+	* left just because.
+	* 
+	* @details These are locked to ull for our purpose,
+	* but youd be better off using a template with 
+	* std::numeric_limits stuff.
+	* 
+	* @param value Value to have the roll done
+	* @param roll How many bits you want to roll the value
+	* 
+	* @return std::size_t of rolled value
+	*/
+	constexpr std::size_t RoR( std::size_t value, std::uint32_t roll ) const
+	{
+		return ( ( value >> roll ) | ( value << ( MAX_ULL_BITS - roll ) ) );
+	}
+
+	constexpr std::size_t RoL( std::size_t value, std::uint32_t roll ) const
+	{
+		return ( ( value << roll ) | ( value >> ( MAX_ULL_BITS - roll ) ) );
+	}
+};
+
+
+
+
+
+
+
+
+
+static class UniqueFileGenerator
+{
+	static constexpr const std::size_t SZ_MAX_ARRAY = 26;
+
+
+public:
+	// Generate a unique filename based on an index (0-25)
+	static constexpr const char* getFileName()
+	{
+		// Array of 26 unique filenames
+		static constexpr std::array<std::string_view, 26> filenames = {
+			"alpha.dat", "bravo.bin", "charlie.cfg", "delta.db", "echo.exe",
+			"foxtrot.fil", "golf.gz", "hotel.h", "india.ini", "juliet.jpg",
+			"kilo.key", "lima.log", "mike.md", "november.nfo", "oscar.obj",
+			"papa.pdf", "quebec.qt", "romeo.rtf", "sierra.sys", "tango.tmp",
+			"uniform.url", "victor.vbs", "whiskey.wav", "xray.xml", "yankee.yml",
+			"zulu.zip"
+		};
+		return filenames[ GetRandomIndex() ].data();
+	}
+
+	// Generate a unique filepath based on an index (0-25)
+	static constexpr const char* getFilePath()
+	{
+		// Array of 26 unique filepaths
+		static constexpr std::array<std::string_view, 26> filepaths = {
+			"/var/log/app/", "/usr/local/bin/", "/tmp/cache/", "/home/user/docs/",
+			"/etc/config/", "/opt/module/", "/dev/disk/", "/mnt/storage/",
+			"C:/Program Files/App/", "D:/Downloads/", "E:/Backup/", "F:/Projects/",
+			"/sys/kernel/", "/proc/modules/", "/run/service/", "/boot/grub/",
+			"./local/share/", "../parent/child/", "~/user/home/", "/media/external/",
+			"/srv/www/html/", "/root/admin/", "//network/share/", "./relative/path/",
+			"../../two/levels/up/", "/very/deep/nested/path/to/somewhere/"
+		};
+		return filepaths[ GetRandomIndex() ].data();
+	}
+
+
+	/**
+	* @brief Used to get random index for our
+	* file paths and names
+	*
+	* @return std::uint32_t with random seed
+	*/
+	static constexpr std::uint32_t GetRandomIndex()
+	{
+		return Random() % SZ_MAX_ARRAY;
+	}
+
+	/**
+	* @brief Used to generate a seed using
+	* a string created from time
+	*
+	* @return std::uint32_t with random seed
+	*/
+	static constexpr std::uint32_t Seed()
+	{
+		return
+			( ( __TIME__[ 0 ] - '0' ) * 10 + ( __TIME__[ 1 ] - '0' ) ) * 3600 +  // Hours
+			( ( __TIME__[ 3 ] - '0' ) * 10 + ( __TIME__[ 4 ] - '0' ) ) * 60 +     // Minutes
+			( ( __TIME__[ 6 ] - '0' ) * 10 + ( __TIME__[ 7 ] - '0' ) );           // Seconds
+	}
+
+	/**
+	* @brief Linear Congruential Generator
+	*
+	* @param seed Random seed value From Seed function
+	* @return std::uint32_t with random number
+	*/
+	static constexpr std::uint32_t Random()
+	{
+		return ( Seed() * 1664525u + 1013904223u ) % 0xFFFFFFFFu;
+	}
+};
 
 
 #endif // !CLASSBASE_HXX
