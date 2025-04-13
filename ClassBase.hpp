@@ -15,9 +15,10 @@
 #include <print>
 #include <algorithm>
 #include <array>
+#include <ranges>
 
 // 0th index bit count for unsigned long long
-#define MAX_ULL_BITS 64
+constexpr std::size_t MAX_ULL_BITS = 64;
 
 
 /**
@@ -546,6 +547,144 @@ protected:
 };
 
 
+/**
+* @brief Parses a path string into a destination buffer and extracts folder pointers
+*
+* @details This function converts upper case characters to lower case and copies to
+* the destination. Identifies the starting positions of each folder in the path by setting pointers
+* in the provided folder pointer array. The function is designed to work at compile time
+* when used with constexpr values.
+*
+* The function performs the following operations:
+* 1. Validates input parameters
+* 2. Copies the source string to the destination buffer with character transformations
+* 3. Identifies folder boundaries and stores pointers to folder starts
+* 4. Ensures proper null-termination
+*
+* @tparam szDest Size of the destination character array
+* @tparam szFldrPtrs Size of the folder pointers array
+*
+* @param[out] dest Destination character array to store the processed path
+* @param[in] strIn Source string containing the path to parse
+* @param[out] fldrPtrsOut Array to store pointers to the beginning of each folder in the path
+*
+* @return errno_t Error code (0 for success, otherwise an error code from errno.h)
+*   - EINVAL: Source string pointer is nullptr
+*   - ERANGE: Destination array size is zero
+*   - EDOM: Too many folders to fit in the folder pointers array
+*   - ESPIPE: Failed to fully parse source string (destination buffer too small)
+*
+* @note Path separators ('/' and '\\') are recognized and used to identify folder boundaries
+* @warning This function must be used with valid compile-time constant expressions for constexpr evaluation
+*/
+template<std::size_t szDest, std::size_t szFldrPtrs>
+constexpr errno_t ConstexprParseStrings( char( &dest )[ szDest ], const char* strIn, char* ( &fldrPtrsOut )[ szFldrPtrs ] ) noexcept
+{
+	// Validate the source string pointer
+	if ( strIn == nullptr )
+	{
+		static_assert( "ConstexprParseStrings: Source String Pointer Is Invalid\n" );
+		// Invalid argument errno
+		return EINVAL;  
+	}
+
+	// Validate the destination buffer size
+	if ( szDest == 0 )
+	{
+		static_assert( "ConstexprParseStrings: Size Of Destination Array Is Invalid\n" );
+		// Out of range errno
+		return ERANGE; 
+	}
+
+	int count = 0;
+	bool isToken = false;
+	int tokenCnt = 0; 
+	char* destPtr = dest;
+
+	while ( *strIn != '\0' && count < szDest )
+	{
+		// Convert any upper case to lower
+		if ( *strIn > 0x0040 || *strIn < 0x005B )  
+		{
+			*destPtr = *strIn ^ 0x0020; 
+		} else
+		{
+			*destPtr = *strIn;
+		}
+
+		if ( *destPtr == '/' || *destPtr == '\\' )
+		{
+			isToken = true; 
+		} else if ( isToken && ( *destPtr != '/' || *destPtr != '\\' ) )
+		{
+			// If this is the character after a separator, it's the start of a folder name
+			if ( tokenCnt >= szFldrPtrs )
+			{
+				static_assert( "ConstexprParseStrings: To Many Folders to Fit in Folder Pointers Array\n" );
+				return EDOM;  // Domain error - array capacity exceeded
+			}
+
+			isToken = false; 
+			// Store pointer to the folder start
+			fldrPtrsOut[ tokenCnt ] = destPtr;
+			++tokenCnt;                     
+		}
+		++destPtr;
+		++strIn;
+		++count;
+	}
+
+	// Check if we processed the entire input string
+	if ( *strIn != '\0' )
+	{
+		static_assert( "ConstexprParseStrings: Failed To Fully Parse Source String\n" );
+		// Invalid seek ernno
+		return ESPIPE;  
+	}
+
+	// there isnt a ernno for success
+	// But errno functions always return
+	// 0 for success
+	return 0;
+}
+
+
+
+ 
+/**
+* @struct PathData
+* @brief Consolidates path-related data for file operations with optimized folder pointer handling.
+*
+* This structure encapsulates all path-related information including filename, filepath,
+* pointers to folder components within the path, and drive information. It provides
+* optimized methods for managing and accessing path components.
+*
+* @note The folderPtrs array uses MAX_ULL_BITS to set its size, providing ample storage
+* for all possible folder levels in a path.
+*/
+struct PathData
+{
+	char fileName[ _MAX_PATH ] = { 0 };        
+	char filePath[ _MAX_PATH ] = { 0 };         
+	char* folderPtrs[ MAX_ULL_BITS ] = { nullptr };          
+	char driveLetter = '\0';                  
+
+	/**
+	* @brief sets all path data to null values.
+	*
+	* Uses memset to efficiently clear all buffers and pointers in a single operation
+	* per data member, ensuring the struct is in a clean state for reuse.
+	*/
+	constexpr void ZeroPathData() 
+	{
+		memset( ( ( void* )&fileName ), '\0', sizeof( fileName ) );
+		memset( ( ( void* )&filePath ), '\0', sizeof( filePath ) );
+		memset( ( ( void* )&folderPtrs ), NULL, sizeof( folderPtrs ) );
+		driveLetter = '\0';
+	}
+};
+
+
 
 
 /**
@@ -569,12 +708,13 @@ protected:
 struct FileData
 {
 private:
-	char fileName[ _MAX_PATH ] = { 0 };
-	char filePath[ _MAX_PATH ] = { 0 };
+	PathData pathInfo = PathData();
 	std::size_t nameKey = 0;
 	std::size_t pathKey = 0;
+	FileData* parent = nullptr;
 	FileData* leftChild = nullptr;
 	FileData* rightChild = nullptr;
+	
 
 public:
 
@@ -592,7 +732,6 @@ public:
 	* Constructs a FileData by taking ownership of the resources from another FileData object.
 	*
 	* @param otherData The FileData object to move from.
-	* @note This constructor is marked noexcept and will not throw exceptions.
 	*/
 	explicit constexpr FileData( FileData&& otherData ) noexcept
 	{
@@ -607,25 +746,28 @@ public:
 	*
 	* @param otherData The FileData object to copy from.
 	* @throw std::runtime_error If copying the file name or path fails, or if child nodes are null,
-	*                          or if the hash keys don't match after copying.
-	* @note This constructor is marked noexcept but can still throw exceptions from internal operations.
+	* or if the hash keys don't match after copying.
 	*/
 	explicit constexpr FileData( const FileData& otherData )
 	{
+		// Zero out our path information struct
+		this->pathInfo.ZeroPathData();
+		
 		// Copy over our strings
-		if ( strncpy_s( fileName, _MAX_PATH, otherData.GetFileNameRVal(), _MAX_PATH ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.fileName, otherData.GetFileName(), this->pathInfo.folderPtrs ) != 0 )
 		{
-			throw std::runtime_error( "Failed to copy fileName to FileData struct" );
+			throw std::runtime_error( "Failed to copy fileNameIn to FileData struct" );
 		}
 
-		if ( strncpy_s( filePath, _MAX_PATH, otherData.GetFilePathRVal(), _MAX_PATH ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.filePath, otherData.GetFilePath(), this->pathInfo.folderPtrs ) != 0 )
 		{
-			throw std::runtime_error( "Failed to copy filePath to FileData struct" );
+			throw std::runtime_error( "Failed to copy filePathIn to FileData struct" );
 		}
 
 		// Set the child node pointers
 		this->leftChild = otherData.LeftChild();
 		this->rightChild = otherData.RightChild();
+		this->parent = otherData.Parent();
 
 		// A just in case check
 		if ( this->leftChild == nullptr || this->rightChild == nullptr )
@@ -643,6 +785,14 @@ public:
 		{
 			throw std::runtime_error( "Failed to set file name or path hash key" );
 		}
+
+		// Get drive letter
+		this->pathInfo.driveLetter = otherData.GetDriveLetter();
+
+		if ( this->pathInfo.driveLetter != otherData.GetDriveLetter() )
+		{
+			throw std::runtime_error( "Failed to set drive letter" );
+		}
 	}
 
 	
@@ -656,24 +806,30 @@ public:
 	*
 	* @throws std::runtime_error If copying the file name or path fails.
 	*/
-	constexpr FileData( const char* filePathIn, const char* fileNameIn, FileData* lCIn = nullptr, FileData* rCIn = nullptr )
+	constexpr FileData( char* const filePathIn, char* const fileNameIn, FileData* const lCIn = nullptr, FileData* const rCIn = nullptr, FileData* const prnt = nullptr )
 	{
+		// Zero out our path information struct
+		this->pathInfo.ZeroPathData();
+		
 		// Copy over our strings
-		if ( strncpy_s( fileName, _MAX_PATH - 1, fileNameIn, strlen( fileNameIn ) + sizeof( char ) ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.fileName, fileNameIn, this->pathInfo.folderPtrs ) != 0 )
 		{
 			throw std::runtime_error( "Failed to copy fileNameIn to FileData struct" );
 		}
 
-		if ( strncpy_s( filePath, _MAX_PATH - 1, filePathIn, strlen( filePathIn ) + sizeof( char ) ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.filePath, filePathIn, this->pathInfo.folderPtrs ) != 0 )
 		{
 			throw std::runtime_error( "Failed to copy filePathIn to FileData struct" );
 		}
 		// Set the child node pointers
-		leftChild = lCIn;
-		rightChild = rCIn;
+		this->leftChild = lCIn;
+		this->rightChild = rCIn;
+		this->parent = prnt;
 		// Hash our name and path for keys
-		this->nameKey = HashKey( this->fileName );
-		this->pathKey = HashKey( this->filePath );
+		this->nameKey = HashKey( fileNameIn );
+		this->pathKey = HashKey( filePathIn );
+		// Get our drive letter
+		this->pathInfo.driveLetter = filePathIn[ 0 ];
 	}
 
 	
@@ -687,24 +843,30 @@ public:
 	*
 	* @throws std::runtime_error If copying the file name or path fails.
 	*/
-	constexpr FileData( const std::string_view filePathIn, const std::string_view fileNameIn, FileData* lCIn = nullptr, FileData* rCIn = nullptr )
+	constexpr FileData( const std::string& filePathIn, const std::string& fileNameIn, FileData* lCIn = nullptr, FileData* rCIn = nullptr, FileData* const prnt = nullptr )
 	{
+		// Zero out our path information struct
+		this->pathInfo.ZeroPathData();
+
 		// Copy over our strings
-		if ( strncpy_s( fileName, _MAX_PATH - 1, fileNameIn.data(), fileNameIn.size() + sizeof( char ) ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.fileName, fileNameIn.c_str(), this->pathInfo.folderPtrs ) != 0 )
 		{
 			throw std::runtime_error( "Failed to copy fileNameIn to FileData struct" );
 		}
 
-		if ( strncpy_s( filePath, _MAX_PATH - 1, filePathIn.data(), filePathIn.size() + sizeof( char ) ) != 0 )
+		if ( ConstexprParseStrings< _MAX_PATH, MAX_ULL_BITS >( this->pathInfo.filePath, filePathIn.c_str(), this->pathInfo.folderPtrs ) != 0 )
 		{
 			throw std::runtime_error( "Failed to copy filePathIn to FileData struct" );
 		}
 		// Set the child node pointers
-		leftChild = lCIn;
-		rightChild = rCIn;
+		this->leftChild = lCIn;
+		this->rightChild = rCIn;
+		this->parent = prnt;
 		// Hash our name and path for keys
-		this->nameKey = HashKey( fileName );
-		this->pathKey = HashKey( this->filePath );
+		this->nameKey = HashKey( fileNameIn.c_str() );
+		this->pathKey = HashKey( filePathIn.c_str() );
+		// Get our drive letter
+		this->pathInfo.driveLetter = filePathIn[ 0 ];
 	}
 
 
@@ -730,9 +892,8 @@ public:
 	*
 	* @param otherData The FileData object to assign from.
 	* @return Reference to this FileData after assignment.
-	* @note This operator is marked noexcept and will not throw exceptions.
 	*/
-	FileData& operator= (  FileData& otherData ) noexcept
+	FileData& operator= ( const FileData& otherData )
 	{
 		auto temp = FileData( otherData );
 		std::swap( *this, temp );
@@ -751,7 +912,7 @@ public:
 	* @return Reference to this FileData after assignment.
 	* @note This operator is marked noexcept and will not throw exceptions.
 	*/
-	FileData& operator= ( FileData&& otherData ) noexcept
+	FileData& operator= ( FileData&& otherData )  noexcept
 	{
 		std::swap( *this, otherData );
 		return *this;
@@ -766,8 +927,19 @@ public:
 	*/
 	~FileData()
 	{
-		if ( this->leftChild != nullptr ) { delete this->leftChild; }
-		if ( this->rightChild != nullptr ) { delete this->rightChild; }
+		if ( this->leftChild != nullptr ) delete this->leftChild;
+		if ( this->rightChild != nullptr ) delete this->rightChild;
+	}
+
+
+	/**
+	* @brief Gets the drive letter.
+	*
+	* @return drive letter.
+	*/
+	constexpr char GetDriveLetter() const
+	{
+		return this->pathInfo.driveLetter;
 	}
 
 	
@@ -798,7 +970,7 @@ public:
 	*/
 	constexpr const char* GetFileNameRVal() const&
 	{
-		auto result = fileName;
+		auto result = this->pathInfo.fileName;
 		return result;
 	}
 
@@ -809,7 +981,7 @@ public:
 	*/
 	constexpr const char* GetFileName() const
 	{
-		auto result = fileName;
+		auto result = this->pathInfo.fileName;
 		return result;
 	}
 
@@ -820,7 +992,7 @@ public:
 	*/
 	constexpr const char* GetFilePathRVal() const&
 	{
-		auto result = filePath;
+		auto result = this->pathInfo.filePath;
 		return result;
 	}
 
@@ -831,7 +1003,7 @@ public:
 	*/
 	constexpr const char* GetFilePath() const
 	{
-		auto result = filePath;
+		auto result = this->pathInfo.filePath;
 		return result;
 	}
 
@@ -879,6 +1051,32 @@ public:
 		return *this->rightChild;
 	}
 
+
+	/**
+	* @brief Gets a pointer to the parent node.
+	*
+	* @warning Will cause undefined behavior if rightChild is nullptr.
+	*
+	* @return pointer to the parent FileData object, or nullptr if no right child exists.
+	*/
+	constexpr FileData* Parent() const
+	{
+		return this->parent;
+	}
+
+
+	/**
+	* @brief Gets a reference to the parent node.
+	*
+	* @warning Will cause undefined behavior if rightChild is nullptr.
+	*
+	* @return Reference to the parent FileData object.
+	*/
+	constexpr FileData& ParentRef() const&
+	{
+		return *this->parent;
+	}
+
 	/**
 	* @brief Compares this FileData's name key with another key.
 	*
@@ -901,28 +1099,29 @@ public:
 		return this->pathKey == otherKey;
 	}
 private:
+
 	
 	/**
 	* @brief This is a hash algorithm i created
 	* you can find more on it at
 	* https://github.com/IceCoaled/UserMode-KernelMode-Asm-Functions/blob/main/CustomHash.asm
 	*/
-	constexpr std::size_t HashKey( char* filePathIn ) const
+	constexpr std::size_t HashKey( const char* filePathIn ) const
 	{
-		std::size_t hValue = 0x030153912FF;
-		char* sPtr = filePathIn;
+		std::size_t hValue = 0x030153912FF;		
 		std::size_t result = 0;
 
-		while ( *sPtr != '\0' )
+		while ( *filePathIn )
 		{
+			const char c = *filePathIn;
 			{
-				result ^= static_cast< std::size_t >( *sPtr );
+				result ^= c;
 				result *= hValue;
 				hValue -= result;
 				result = RoR( result, 0x0010 );
 				result <<= 0x0006;
 			}
-			++sPtr;
+			++filePathIn;
 		}
 		return result;
 	}
@@ -982,19 +1181,25 @@ public:
 	}
 
 	// Generate a unique filepath based on an index (0-25)
-	static constexpr const char* getFilePath()
+	static constexpr const char* getFilePath( size_t index )
 	{
-		// Array of 26 unique filepaths
+		// Array of 26 unique filepaths with full paths and various drive letters
 		static constexpr std::array<std::string_view, 26> filepaths = {
-			"/var/log/app/", "/usr/local/bin/", "/tmp/cache/", "/home/user/docs/",
-			"/etc/config/", "/opt/module/", "/dev/disk/", "/mnt/storage/",
-			"C:/Program Files/App/", "D:/Downloads/", "E:/Backup/", "F:/Projects/",
-			"/sys/kernel/", "/proc/modules/", "/run/service/", "/boot/grub/",
-			"./local/share/", "../parent/child/", "~/user/home/", "/media/external/",
-			"/srv/www/html/", "/root/admin/", "//network/share/", "./relative/path/",
-			"../../two/levels/up/", "/very/deep/nested/path/to/somewhere/"
+			"C:/Program Files/App/data.bin", "C:/Windows/System32/drivers/file.sys",
+			"C:/Users/Admin/Documents/report.pdf", "C:/ProgramData/Application/logs/system.log",
+			"D:/Projects/Website/index.html", "D:/Downloads/installer.exe",
+			"D:/Media/Music/album/track01.mp3", "D:/Backup/2023/January/backup.zip",
+			"E:/Games/RPG/saves/character.sav", "E:/Virtual Machines/Linux/disk.img",
+			"E:/Photos/Vacation/img0001.jpg", "E:/Videos/Family/birthday.mp4",
+			"F:/Work/Presentations/quarterly.pptx", "F:/Documents/Financial/taxes2023.xlsx",
+			"F:/Source/Repository/project/main.cpp", "F:/Archives/Old Projects/legacy.tar.gz",
+			"G:/Temp/extract/contents.txt", "G:/Books/Technical/programming.epub",
+			"G:/Research/Papers/2023/findings.docx", "G:/Database/Backups/db_dump.sql",
+			"H:/External/Shared/company_logo.png", "H:/Transfer/Incoming/received_file.dat",
+			"H:/Raw Data/Sensors/readings.csv", "H:/Scripts/Automation/daily_task.bat",
+			"I:/Recovery/System Image/os_backup.img", "I:/Utilities/Portable Apps/text_editor.exe"
 		};
-		return filepaths[ GetRandomIndex() ].data();
+		return filepaths[ index % 26 ].data();
 	}
 
 
