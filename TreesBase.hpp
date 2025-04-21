@@ -414,11 +414,41 @@ public:
 	}
 
 
+	/**
+	* @brief Compares file names lexicographically with another FileData through pointer
+	*
+	* This method performs a three-way comparison between this object's file name
+	* and the file name of another FileData object accessed through a pointer.
+	* The comparison uses the C++20 spaceship operator (<=>) to generate a
+	* std::strong_ordering result.
+	*
+	* @param otherData Pointer to the FileData object to compare with
+	* @return std::strong_ordering Result of the three-way comparison:
+	* - std::strong_ordering::less if this file name is lexicographically less than other's
+	* - std::strong_ordering::equal if file names are equal
+	* - std::strong_ordering::greater if this file name is lexicographically greater than other's
+	*
+	* @note This function assumes otherData is not nullptr and GetFileName() returns a comparable string
+	*/
 	constexpr auto CompareNames( FileData* otherData ) const
 	{
 		return this->GetFileName() <=> otherData->GetFileName();
 	}
 
+	/**
+	* @brief Compares file names lexicographically with another FileData through reference
+	*
+	* This method performs a three-way comparison between this object's file name
+	* and the file name of another FileData object accessed through a reference.
+	* The comparison uses the C++20 spaceship operator (<=>) to generate a
+	* std::strong_ordering result.
+	*
+	* @param otherData Reference to the FileData object to compare with
+	* @return std::strong_ordering Result of the three-way comparison:
+	* - std::strong_ordering::less if this file name is lexicographically less than other's
+	* - std::strong_ordering::equal if file names are equal
+	* - std::strong_ordering::greater if this file name is lexicographically greater than other's
+	*/
 	constexpr auto CompareNames( FileData& otherData ) const
 	{
 		return this->GetFileName() <=> otherData.GetFileName();
@@ -490,83 +520,182 @@ public:
 	}
 
 
+	/**
+	* @brief Accesses or modifies a FileData node pointer member
+	*
+	* @tparam nodePtr Pointer-to-member of FileData that refers to another FileData*
+	* @tparam Self Type of the caller, constrained by FileDataQual concept
+	*
+	* @param self The object whose member is being accessed (this-parameter in C++23)
+	* @param newNode Optional new value to assign to the member pointer
+	*
+	* @return std::optional<FileData*> Current value of the node pointer if no new value was provided,
+	*         otherwise returns std::nullopt
+	*
+	* @details This function provides a unified interface for getting or setting node pointers
+	*          in a FileData object, regardless of how that object is accessed (by reference,
+	*          pointer, or smart pointer). It uses concepts to constrain the types:
+	*          - FileDataQual ensures Self can be treated as a FileData
+	*          - NodePointerQual ensures nodePtr is a pointer-to-member of FileData type
+	*
+	* @note The function uses perfect forwarding to preserve value categories.
+	*       It prevents modification of const objects using compile-time assertions.
+	*
+	* @throws No exceptions are thrown by this function
+	*
+	* @code
+	* // Example: Setting left child of a node
+	* node->AccessNode<&FileData::leftChild>(std::make_optional(childNode));
+	*
+	* // Example: Getting parent node
+	* auto parent = node->AccessNode<&FileData::parent>();
+	* @endcode
+	*/
 	template<auto nodePtr, typename Self>
-		requires FileDataQual<Self> &&
-			NodePointerQual<nodePtr, Self>
-	constexpr std::optional<FileData*> AccessNode( this Self&& self,
-				std::optional<FileData*> newNode = std::nullopt ) 
+		requires FileDataQual<Self>&&
+	NodePointerQual<nodePtr, Self>
+		constexpr std::optional<FileData*> AccessNode( this Self&& self,
+													   std::optional<FileData*> newNode = std::nullopt )
 	{
 		auto thisObj = std::forward<Self>( self );
-			
+
 		if ( newNode.has_value() )
-		{			
+		{
 			if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
 			{
+				// Prevent compilation if trying to modify through a const pointer
 				static_assert( !std::is_const_v<std::remove_pointer_t<std::decay_t<Self>>>,
 							   "AccessNode: Deduced parameter can't be const" );
-				
+
 				if constexpr ( !std::is_const_v<std::remove_pointer_t<std::decay_t<Self>>> )
 				{
+					// Set node pointer using pointer->*member syntax
 					thisObj->*nodePtr = newNode.value_or( nullptr );
 				}
-				
+
 			} else
 			{
+				// Prevent compilation if trying to modify a const object
 				static_assert( !std::is_const_v<std::remove_reference_t<Self>>,
 							   "AccessNode: Deduced parameter can't be const" );
 
 				if constexpr ( !std::is_const_v<std::remove_reference_t<Self>> )
 				{
+					// Set node pointer using object.*member syntax
 					thisObj.*nodePtr = newNode.value_or( nullptr );
 				}
-			} 
+			}
 			return std::nullopt;
 		} else
-		{			
+		{
 			if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
 			{
-				return ( thisObj->*nodePtr != nullptr ) ? 
+				// Get node pointer through pointer->*member access, wrapping in optional
+				return ( thisObj->*nodePtr != nullptr ) ?
 					std::make_optional( thisObj->*nodePtr ) : std::nullopt;
 			} else
 			{
-				return ( thisObj.*nodePtr != nullptr ) ? 
+				// Get node pointer through object.*member access, wrapping in optional
+				return ( thisObj.*nodePtr != nullptr ) ?
 					std::make_optional( thisObj.*nodePtr ) : std::nullopt;
 			}
 		}
 	}
 
-
-
+	/**
+	* @brief Retrieves a FileData node pointer member
+	*
+	* @tparam nodePtr Pointer-to-member of FileData that refers to another FileData*
+	* @tparam Self Type of the caller, constrained by FileDataQual concept
+	*
+	* @param self The object whose member is being accessed (this-parameter in C++23)
+	*
+	* @return std::optional<FileData*> Current value of the node pointer wrapped in an optional,
+	*         or std::nullopt if the pointer is null
+	*
+	* @details This function is a simplified read-only version of AccessNode. It provides
+	*          uniform access to node pointers regardless of how the FileData object is
+	*          accessed (by reference, pointer, or smart pointer).
+	*
+	* @note The function uses perfect forwarding to preserve value categories.
+	*       Unlike AccessNode, this function never modifies the object and only retrieves values.
+	*
+	* @throws No exceptions are thrown by this function
+	*
+	* @code
+	* // Example: Getting left child of a node
+	* auto leftChild = node->GetNodeRef<&FileData::leftChild>();
+	* @endcode
+	*/
 	template<auto nodePtr, typename Self>
-		requires FileDataQual<Self>	&&
-			NodePointerQual<nodePtr, Self>
-	constexpr std::optional<FileData*> GetNodeRef( this Self&& self )
-	{	
+		requires FileDataQual<Self>&&
+	NodePointerQual<nodePtr, Self>
+		constexpr std::optional<FileData*> GetNodeRef( this Self&& self )
+	{
 		auto thisObj = std::forward<Self>( self );
 
 		if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
 		{
-			return ( thisObj->*nodePtr != nullptr ) ? 
+			// Get node pointer through pointer->*member access, wrapping in optional
+			return ( thisObj->*nodePtr != nullptr ) ?
 				std::make_optional( thisObj->*nodePtr ) : std::nullopt;
 		} else
 		{
-			return ( thisObj.*nodePtr != nullptr ) ? 
+			// Get node pointer through object.*member access, wrapping in optional
+			return ( thisObj.*nodePtr != nullptr ) ?
 				std::make_optional( thisObj.*nodePtr ) : std::nullopt;
 		}
 	}
 };
 
 
+/**
+* @concept FileDataQual
+* @brief Concept that constrains types to FileData or FileData-compatible types
+*
+* @tparam Self The type being constrained
+*
+* @details This concept evaluates to true for:
+*   1. FileData objects (by value or reference)
+*   2. Raw pointers to FileData objects
+*   3. Smart pointer types that implement operator->() returning a FileData*
+*
+* This allows template functions to accept FileData objects regardless of how
+* they are passed (directly, through raw pointers, or through smart pointers).
+* The concept uses std::decay_t to normalize reference types and remove cv-qualifiers.
+*
+* @note The implementation uses a disjunction of type traits and a requires expression
+*       for smart pointers, allowing for maximal flexibility.
+*/
 template<typename Self>
 concept FileDataQual = ( std::is_same_v<FileData, std::decay_t<Self>> ||
-	std::is_same_v<FileData, std::decay_t<Self>> ) ||
+						 std::is_same_v<FileData, std::decay_t<Self>> ) ||
 	( std::is_pointer_v<std::decay_t<Self>> &&
-	std::is_same_v<FileData, std::remove_pointer_t<std::decay_t<Self>>> ) ||
+	  std::is_same_v<FileData, std::remove_pointer_t<std::decay_t<Self>>> ) ||
 	requires( Self s )
 {
 	{ s.operator->() } -> std::convertible_to<FileData*>;
 };
 
+/**
+* @concept NodePointerQual
+* @brief Concept that constrains a member pointer to point to a FileData* member
+*
+* @tparam NodePtr The member pointer being constrained (auto parameter)
+* @tparam Self The type on which the member pointer will be used
+*
+* @details This concept ensures that the provided member pointer (NodePtr) refers to
+*          a FileData* member that can be accessed on the Self type. The concept
+*          handles both:
+*          1. Pointer access syntax (s->*np) for pointer-like Self types
+*          2. Object access syntax (s.*np) for object Self types
+*
+* This allows template functions to safely use pointer-to-member access with
+* FileData objects, ensuring type safety at compile time.
+*
+* @note The implementation uses two separate requires expressions to handle
+*       the different access syntaxes, joined by a logical OR.
+*/
 template<auto NodePtr, typename Self>
 concept NodePointerQual = requires( Self s, decltype( NodePtr ) np )
 {
