@@ -1,0 +1,132 @@
+#include "BinaryTreeBase.hpp"
+#include <generator>
+#include <functional>
+
+
+
+class StardardBinaryTree
+{
+	static constexpr std::size_t SZ_MAX_TREE = UnqFileGen::SZ_MAX_ARRAY;
+	// We are using this so we know we can clear all the memory used
+	// I should have done this when i was learning linked list sorting
+	std::vector<FileData*> sortedFileData;
+	FileData* treeRoot = nullptr;
+public:
+	StardardBinaryTree()
+	{
+		InitTree();
+		PrintTree( this->treeRoot );
+	}
+	~StardardBinaryTree()
+	{
+		for ( auto entry : this->sortedFileData )
+		{
+			if ( entry != nullptr )
+			{
+				delete entry;
+			}
+		}
+	}
+
+private:
+
+
+	void InitTree()
+	{
+		UnqFileGen::InitRandomGen();
+		std::vector<FileData*> unSorted;
+		unSorted.reserve( SZ_MAX_TREE );
+
+		for ( std::size_t i = 0; i < SZ_MAX_TREE; ++i )
+		{
+			auto entry = new FileData();
+			if ( entry == nullptr )
+			{
+				throw std::runtime_error( "Failed to Create FileData entry.\n" );
+			} else
+			{
+				unSorted.emplace_back( entry );
+			}
+		}
+
+		// Sort the file data structs in lexilogical order
+		std::ranges::sort( unSorted, []( FileData* a, FileData* b )
+		{
+			return a->CompareNames( b ) ==
+				std::strong_ordering::less;
+		});
+
+		auto dups =
+			std::ranges::unique( unSorted, []( FileData* a, FileData* b )
+								 {
+									 return a->ComparePathKeys( b->GetFilePathKey() );
+								 } );
+
+		if ( !dups.empty() && dups.end() != unSorted.end() )
+		{
+			for ( auto it = unSorted.end() - 1; it >= dups.end(); --it )
+			{
+				delete *it; 
+			}
+			unSorted.erase( dups.end(), unSorted.end() );
+			unSorted.shrink_to_fit();
+		}
+
+		this->sortedFileData = std::exchange( unSorted, {} );
+
+		// Then we call to build the tree out
+		this->treeRoot = BuildSubTrees( 0, this->sortedFileData.size() - 1 );
+	}
+
+
+	FileData* BuildSubTrees( std::size_t start, std::size_t end )
+	{
+		if ( start > end )
+		{
+			return nullptr;
+		}
+
+		const auto mid = std::midpoint<std::size_t>( start, end );
+
+		FileData* root = this->sortedFileData[ mid ];
+		
+		if ( FileData* builtLeft = BuildSubTrees( start, mid - 1 ); builtLeft != nullptr )
+		{
+			builtLeft->AccessNode<&FileData::parent>( std::make_optional( root ) );
+			root->AccessNode<&FileData::leftChild>( std::make_optional( builtLeft ) );
+		}
+
+
+		if ( FileData* builtRight = BuildSubTrees( mid + 1, end ); builtRight != nullptr )
+		{
+			builtRight->AccessNode<&FileData::parent>( std::make_optional( root ) );
+			root->AccessNode<&FileData::rightChild>( std::make_optional( builtRight ) );
+		}
+
+		return root;
+	}
+
+
+	void PrintTree( FileData* node, std::string prefix = "", bool isLeft = false )
+	{
+		
+		if ( node == nullptr ) return;
+
+		std::cout << prefix;
+		std::cout << ( isLeft ? "├── " : "└── " );
+
+		// Print the node value (assuming GetFileName exists)
+		std::cout << node->GetFileName() << std::endl;
+
+		// Enter the next level - left and right branches with appropriate prefixes
+		PrintTree( node->AccessNode<&FileData::leftChild>().value_or( nullptr ),
+				   prefix + ( isLeft ? "│   " : "    " ),
+				   true );
+
+		PrintTree( node->AccessNode<&FileData::rightChild>().value_or( nullptr ),
+				   prefix + ( isLeft ? "│   " : "    " ),
+				   false );
+	}
+};
+
+
