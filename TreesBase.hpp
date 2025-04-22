@@ -555,7 +555,7 @@ public:
 		requires FileDataQual<Self>&&
 	NodePointerQual<nodePtr, Self>
 		constexpr std::optional<FileData*> AccessNode( this Self&& self,
-													   std::optional<FileData*> newNode = std::nullopt )
+		std::optional<FileData*> newNode = std::nullopt )
 	{
 		auto thisObj = std::forward<Self>( self );
 
@@ -564,10 +564,10 @@ public:
 			if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
 			{
 				// Prevent compilation if trying to modify through a const pointer
-				static_assert( !std::is_const_v<std::remove_pointer_t<std::decay_t<Self>>>,
+				static_assert( !std::is_const_v<std::remove_pointer_t<std::remove_reference_t<Self>>>,
 							   "AccessNode: Deduced parameter can't be const" );
 
-				if constexpr ( !std::is_const_v<std::remove_pointer_t<std::decay_t<Self>>> )
+				if constexpr ( !std::is_const_v<std::remove_pointer_t<std::remove_reference_t<Self>>> )
 				{
 					// Set node pointer using pointer->*member syntax
 					thisObj->*nodePtr = newNode.value_or( nullptr );
@@ -668,8 +668,7 @@ public:
 *       for smart pointers, allowing for maximal flexibility.
 */
 template<typename Self>
-concept FileDataQual = ( std::is_same_v<FileData, std::decay_t<Self>> ||
-						 std::is_same_v<FileData, std::decay_t<Self>> ) ||
+concept FileDataQual = std::is_same_v<FileData, std::decay_t<Self>> ||				
 	( std::is_pointer_v<std::decay_t<Self>> &&
 	  std::is_same_v<FileData, std::remove_pointer_t<std::decay_t<Self>>> ) ||
 	requires( Self s )
