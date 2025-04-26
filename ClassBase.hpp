@@ -17,6 +17,14 @@
 #include <array>
 #include <ranges>
 
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <clocale>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
+
 // 0th index bit count for unsigned long long
 constexpr std::size_t MAX_ULL_BITS = 64;
 
@@ -86,6 +94,14 @@ public:
 	double GetElapsed() const
 	{
 		return Microseconds( stop - start ).count();
+	}
+
+	/**
+	* @brief prints start and stop times to console.
+	*/
+	void PrintTimes() const
+	{
+		std::println( "Start Time: {}, Stop Time: {}.",start.time_since_epoch().count(), stop.time_since_epoch().count() );
 	}
 };
 
@@ -547,5 +563,5 @@ protected:
 };
 
 
-#endif // !CLASSBASE_HXX
+#endif // !CLASSBASE_HPP
 
