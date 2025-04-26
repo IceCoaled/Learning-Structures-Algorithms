@@ -4,7 +4,14 @@
 #include <exception>
 
 
-
+/**
+* @brief Variables for doing searches
+* and printing details in our 
+* binary tree class.
+*
+* @note you need this in order to properly call 
+* @see StandardBinaryTree::FindFileData.
+*/
 enum class TreeTraversal : byte
 {
     breadth4Search = 0x0032,
@@ -13,11 +20,6 @@ enum class TreeTraversal : byte
     postOrderSearch = 0x00FF,
     inOrderSearch = 0x0000,
 };
-
-    /**
-    * THIS IS CURRENTLY INCOMPLETE.
-    * DO NOT USE
-    */
 
     
 /**
