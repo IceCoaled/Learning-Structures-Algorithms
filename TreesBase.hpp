@@ -1,5 +1,24 @@
 #include "ClassBase.hpp"
 
+/**
+* @enum StrParseRes
+* @brief Enumeration of string parsing result codes.
+*
+* This enum provides status codes for the file path parsing operation,
+* indicating success or specific failure conditions that occurred during parsing.
+*/
+enum class StrParseRes
+{
+	Success,
+	InvalidInput,
+	NoDriveLetter,
+	NoFileName,
+	NoFilePath,
+	InvalidFileNameOffset,
+};
+
+
+
 namespace UnqFileGen
 {
 
@@ -9,68 +28,124 @@ namespace UnqFileGen
 	// As this is what you typically see in file properties
 	static constexpr const std::size_t MAX_FILE_SIZE = 3000000;
 
+	// Array of 26 unique filepaths with full paths and various drive letters
+	static const std::array<std::string_view, SZ_MAX_ARRAY> filepaths = {
+		"C:/Program Files/App/data.bin", "C:/Windows/System32/drivers/file.sys",
+		"C:/Users/Admin/Documents/report.pdf", "C:/ProgramData/Application/logs/system.log",
+		"D:/Projects/Website/index.html", "D:/Downloads/installer.exe",
+		"D:/Media/Music/album/track01.mp3", "D:/Backup/2023/January/backup.zip",
+		"E:/Games/RPG/saves/character.sav", "E:/Virtual Machines/Linux/disk.img",
+		"E:/Photos/Vacation/img0001.jpg", "E:/Videos/Family/birthday.mp4",
+		"F:/Work/Presentations/quarterly.pptx", "F:/Documents/Financial/taxes2023.xlsx",
+		"F:/Source/Repository/project/main.cpp", "F:/Archives/Old Projects/legacy.tar",
+		"G:/Temp/extract/contents.txt", "G:/Books/Technical/programming.epub",
+		"G:/Research/Papers/2023/findings.docx", "G:/Database/Backups/db_dump.sql",
+		"H:/External/Shared/company_logo.png", "H:/Transfer/Incoming/received_file.dat",
+		"H:/Raw Data/Sensors/readings.csv", "H:/Scripts/Automation/daily_task.bat",
+		"I:/Recovery/System Image/os_backup.img", "I:/Utilities/Portable Apps/text_editor.exe"
+	};
 
-	static std::random_device rd;
-	static std::mt19937 gen;
-	static std::uniform_int_distribution< std::size_t > rdFSizeDist;
-	static std::uniform_int_distribution< std::size_t > rdPathDist;
-	
-	static void InitRandomGen()
+	constexpr std::string_view GetRandomFilePath()
 	{
-		gen = std::mt19937( rd() );
-		rdFSizeDist	= std::uniform_int_distribution<std::size_t>( 100, MAX_FILE_SIZE );
-		rdPathDist = std::uniform_int_distribution<std::size_t>( 0, SZ_MAX_ARRAY - 1 );
+		std::random_device rd;
+		auto gen = std::mt19937( rd() );
+		auto dist = std::uniform_int_distribution< std::size_t >( 0, SZ_MAX_ARRAY - 1 );
+		return filepaths[ dist( gen ) ];
 	}
 
-	static std::size_t GetFileSize()
-	{
-		return rdFSizeDist( gen );
-	}
-	
 
-	// Generate a unique filepath based on an index (0-25)
-	static std::string_view GetFilePath()
+	/**
+	* @brief Simple roll right bit manipulation for,
+	* our hash algorithim. ive also included roll
+	* left just because.
+	*
+	* @details These are locked to ull for our purpose,
+	* but youd be better off using a template with
+	* std::numeric_limits stuff.
+	*
+	* @param value Value to have the roll done
+	* @param roll How many bits you want to roll the value
+	*
+	* @return std::size_t of rolled value
+	*/
+	constexpr std::size_t RoR( std::size_t value, std::uint32_t roll )
 	{
-		// Array of 26 unique filepaths with full paths and various drive letters
-		static std::array<std::string_view, 26> filepaths = {
-			"C:/Program Files/App/data.bin", "C:/Windows/System32/drivers/file.sys",
-			"C:/Users/Admin/Documents/report.pdf", "C:/ProgramData/Application/logs/system.log",
-			"D:/Projects/Website/index.html", "D:/Downloads/installer.exe",
-			"D:/Media/Music/album/track01.mp3", "D:/Backup/2023/January/backup.zip",
-			"E:/Games/RPG/saves/character.sav", "E:/Virtual Machines/Linux/disk.img",
-			"E:/Photos/Vacation/img0001.jpg", "E:/Videos/Family/birthday.mp4",
-			"F:/Work/Presentations/quarterly.pptx", "F:/Documents/Financial/taxes2023.xlsx",
-			"F:/Source/Repository/project/main.cpp", "F:/Archives/Old Projects/legacy.tar",
-			"G:/Temp/extract/contents.txt", "G:/Books/Technical/programming.epub",
-			"G:/Research/Papers/2023/findings.docx", "G:/Database/Backups/db_dump.sql",
-			"H:/External/Shared/company_logo.png", "H:/Transfer/Incoming/received_file.dat",
-			"H:/Raw Data/Sensors/readings.csv", "H:/Scripts/Automation/daily_task.bat",
-			"I:/Recovery/System Image/os_backup.img", "I:/Utilities/Portable Apps/text_editor.exe"
-		};
-		std::shuffle( filepaths.begin(), filepaths.end(), gen );
-		return filepaths[ rdPathDist( gen ) ];
+		return ( ( value >> roll ) | ( value << ( MAX_ULL_BITS - roll ) ) );
 	}
+
+	constexpr std::size_t RoL( std::size_t value, std::uint32_t roll )
+	{
+		return ( ( value << roll ) | ( value >> ( MAX_ULL_BITS - roll ) ) );
+	}
+
+	/**
+	* @brief This is a hash algorithm i created
+	* you can find more on it at
+	* https://github.com/IceCoaled/UserMode-KernelMode-Asm-Functions/blob/main/CustomHash.asm
+	*/
+	constexpr std::size_t HashKey( const char* filePathIn )
+	{
+		std::size_t hValue = 0x030153912FF;
+		std::size_t result = 0;
+
+		while ( *filePathIn )
+		{
+			const char c = *filePathIn;
+			{
+				result ^= c;
+				result *= hValue;
+				hValue -= result;
+				result = RoR( result, 0x0010 );
+				result <<= 0x0006;
+			}
+			++filePathIn;
+		}
+		return result;
+	}
+
+
+
+
+	constexpr std::size_t GetFileSize( const std::size_t& nameKey, const std::size_t& pathKey )
+	{
+		return ( nameKey - pathKey ) % MAX_FILE_SIZE;
+	}
+
+
+
+	constexpr std::tuple<std::string_view, std::size_t, std::size_t, std::size_t> ParseFilePath( const std::string_view swFilePath )
+	{
+		if ( swFilePath.empty() )
+		{
+			return {};
+		}
+
+		std::string_view swFileName;
+
+		if ( auto fNameOffset = swFilePath.find_last_of( '/' ); fNameOffset < swFilePath.length() )
+		{
+			swFileName = swFilePath.substr( fNameOffset + 1, ( swFilePath.find_last_of( '.' ) - fNameOffset ) - 1 );
+			if ( swFileName.empty() )
+			{
+				return {};
+			}
+		} else
+		{
+			return {};
+		}
+
+		// Hash our name and path for keys
+		auto nameKey = HashKey( std::string( swFileName ).c_str() );
+		auto pathKey = HashKey( std::string( swFilePath ).c_str() );
+
+		return std::tuple<std::string_view, std::size_t, std::size_t, std::size_t>( swFileName, UnqFileGen::GetFileSize( nameKey, pathKey ), nameKey, pathKey );
+	}
+
 };
 
 
 
 
-/**
-* @enum StrParseRes
-* @brief Enumeration of string parsing result codes.
-*
-* This enum provides status codes for the file path parsing operation,
-* indicating success or specific failure conditions that occurred during parsing.
-*/
-enum StrParseRes
-{
-	Success,
-	InvalidInput,
-	NoDriveLetter,
-	NoFileName,
-	NoFilePath,
-	InvalidFileNameOffset,
-};
 
 
 /**
@@ -92,19 +167,31 @@ struct FileInfo
 	std::size_t nameKey = 0;
 	std::size_t pathKey = 0;
 
+	
+	
 	/**
-	* @brief Constructor.
+	* @brief Default constructor.
+	*
+	* Initializes a new FileInfo instance with default values for all members.
+	* @note This constructor is conditionally noexcept based on its member types.
+	*/
+	constexpr FileInfo() noexcept = default;
+
+
+	/**
+	* @brief Constructor with file path.
 	*
 	* Initializes a new FileInfo instance by automatically parsing a generated file path
 	* and extracting information such as file name, path, drive letter, and folders.
 	* Also computes hash keys for efficient comparison operations.
+	* @note This constructor is conditionally noexcept based on InitFileDetails.
 	*/
-	constexpr FileInfo()
+	explicit constexpr FileInfo( const std::string_view& swFilePath )
 	{
-		std::ignore = InitFileDetails();
+		std::ignore = InitFileDetails( swFilePath );
 	}
-	
-	
+
+
 	/**
 	* @brief Copy constructor.
 	*
@@ -112,10 +199,11 @@ struct FileInfo
 	* This includes copying all string_views, folder pointers, hash keys, and other metadata.
 	*
 	* @param other The FileInfo instance to copy from.
+	* @note This constructor is conditionally noexcept based on copying its member types.
 	*/
-	constexpr FileInfo( const FileInfo& other ) = default;
+	constexpr FileInfo( const FileInfo& other ) noexcept = default;
 
-	
+
 	/**
 	* @brief Move assignment operator.
 	*
@@ -124,6 +212,7 @@ struct FileInfo
 	*
 	* @param other The FileInfo instance to move from.
 	* @return Reference to this FileInfo after assignment.
+	* @note This operator is noexcept since it only uses std::exchange which is noexcept.
 	*/
 	constexpr FileInfo& operator=( FileInfo&& other ) noexcept
 	{
@@ -138,6 +227,18 @@ struct FileInfo
 		return *this;
 	}
 
+
+	/**
+	* @brief Copy assignment operator.
+	*
+	* Copies the contents of another FileInfo instance to this one.
+	*
+	* @param other The FileInfo instance to copy from.
+	* @return Reference to this FileInfo after assignment.
+	* @note This operator is conditionally noexcept based on copying its member types.
+	*/
+	constexpr FileInfo& operator=( const FileInfo& other )
+		noexcept( std::is_nothrow_copy_assignable_v<std::string_view> ) = default;
 	
 	/**
 	* @brief Default destructor.
@@ -181,11 +282,10 @@ private:
 	*
 	* If parsing succeeds, it also sets the file size by retrieving it
 	* from the UnqFileGen utility.
-	* @note This operator is marked noexcept and will not throw exceptions.
 	*/
-	StrParseRes InitFileDetails() noexcept
+	StrParseRes InitFileDetails( const std::string_view& swFilePath )
 	{
-		this->filePath = UnqFileGen::GetFilePath();
+		this->filePath = swFilePath;
 		if ( this->filePath.empty() )
 		{
 			return StrParseRes::NoFilePath;
@@ -203,62 +303,12 @@ private:
 			return StrParseRes::InvalidFileNameOffset;
 		}
 
-		this->fileSize = UnqFileGen::GetFileSize();
-			// Hash our name and path for keys
-		this->nameKey = HashKey( this->GetFileName().c_str() );
-		this->pathKey = HashKey( this->GetFilePath().c_str() );
-
+		// Hash our name and path for keys
+		this->nameKey = UnqFileGen::HashKey( this->GetFileName().c_str() );
+		this->pathKey = UnqFileGen::HashKey( this->GetFilePath().c_str() );
+		// Get file size
+		this->fileSize = UnqFileGen::GetFileSize( nameKey, pathKey );
 		return StrParseRes::Success;
-	}
-
-
-	/**
-	* @brief This is a hash algorithm i created
-	* you can find more on it at
-	* https://github.com/IceCoaled/UserMode-KernelMode-Asm-Functions/blob/main/CustomHash.asm
-	*/
-	constexpr std::size_t HashKey( const char* filePathIn ) const
-	{
-		std::size_t hValue = 0x030153912FF;
-		std::size_t result = 0;
-
-		while ( *filePathIn )
-		{
-			const char c = *filePathIn;
-			{
-				result ^= c;
-				result *= hValue;
-				hValue -= result;
-				result = RoR( result, 0x0010 );
-				result <<= 0x0006;
-			}
-			++filePathIn;
-		}
-		return result;
-	}
-
-	/**
-	* @brief Simple roll right bit manipulation for,
-	* our hash algorithim. ive also included roll
-	* left just because.
-	*
-	* @details These are locked to ull for our purpose,
-	* but youd be better off using a template with
-	* std::numeric_limits stuff.
-	*
-	* @param value Value to have the roll done
-	* @param roll How many bits you want to roll the value
-	*
-	* @return std::size_t of rolled value
-	*/
-	constexpr std::size_t RoR( std::size_t value, std::uint32_t roll ) const
-	{
-		return ( ( value >> roll ) | ( value << ( MAX_ULL_BITS - roll ) ) );
-	}
-
-	constexpr std::size_t RoL( std::size_t value, std::uint32_t roll ) const
-	{
-		return ( ( value << roll ) | ( value >> ( MAX_ULL_BITS - roll ) ) );
 	}
 };
 
@@ -293,19 +343,36 @@ private:
 	FileInfo details;
 
 public:
+	// These need to stay public for our 
+	// Template function
 	FileData* parent = nullptr;
 	FileData* leftChild = nullptr;
 	FileData* rightChild = nullptr;
-
-
 
 
 	/**
 	* @brief Default constructor.
 	*
 	* Creates an empty FileData object with all members initialized to their default values.
+	* @note This constructor is conditionally noexcept based on whether FileInfo's default
+	* constructor can throw exceptions.
 	*/
-	constexpr FileData() = default;
+	constexpr FileData() noexcept( std::is_nothrow_default_constructible_v<FileInfo> ) = default;
+
+
+	/**
+	* @brief Constructor with file path.
+	*
+	* @param swFilePath input for the file data creation
+	* Creates a FileData object with file information initialized from the provided path.
+	* This instantiates the file info struct.
+	* @note This constructor is conditionally noexcept based on whether FileInfo's constructor
+	* from string_view can throw exceptions.
+	*/
+	explicit constexpr FileData( const std::string_view& swFilePath )
+		noexcept( std::is_nothrow_constructible_v<FileInfo, const std::string_view&> )
+		: details( FileInfo( swFilePath ) )
+	{}
 
 	/**
 	* @brief Constructs a FileData object with C-style string parameters.
@@ -324,9 +391,10 @@ public:
 	* Constructs a FileData by taking ownership of the resources from another FileData object.
 	*
 	* @param otherData The FileData object to move from.
-	* @note This operator is marked noexcept and will not throw exceptions.
+	* @note This constructor is conditionally noexcept based on whether FileInfo's move operations
+	* can throw exceptions.
 	*/
-	constexpr FileData( FileData&& otherData ) noexcept
+	constexpr FileData( FileData&& otherData ) noexcept( std::is_nothrow_move_constructible_v<FileInfo> )
 	{
 		this->details = std::move( otherData.details );
 		this->leftChild = std::exchange( otherData.leftChild, nullptr );
@@ -341,10 +409,12 @@ public:
 	* Constructs a FileData by copying the contents of another FileData object.
 	*
 	* @param otherData The FileData object to copy from.
-	* @note This operator is marked noexcept and will not throw exceptions.
+	* @note This constructor is conditionally noexcept based on whether FileInfo's copy
+	* constructor can throw exceptions.
 	*/
-	constexpr FileData( const FileData& otherData ) noexcept: details( FileInfo( otherData.details ) ), 
-		parent( otherData.parent ), leftChild( otherData.leftChild ), rightChild( otherData.rightChild ){}
+	constexpr FileData( const FileData& otherData ) noexcept( std::is_nothrow_copy_constructible_v<FileInfo> )
+		: details( FileInfo( otherData.details ) ), parent( otherData.parent ), leftChild( otherData.leftChild ), 
+		rightChild( otherData.rightChild ){}
 
 
 	/**
@@ -354,49 +424,51 @@ public:
 	*
 	* @param otherData Pointer to the FileData object to assign from.
 	* @return Pointer to this FileData after assignment.
-	* @note This operator is marked noexcept and will not throw exceptions.
+	* @note This operator is conditionally noexcept based on whether the copy assignment
+	* operation can throw exceptions when dereferencing the pointer.
 	*/
-	constexpr FileData& operator= ( const FileData* otherData ) noexcept
+	constexpr FileData& operator=( const FileData* otherData )
+		noexcept( noexcept( *this = *std::declval<const FileData*>() ) )
 	{
 		if ( otherData != nullptr )
 		{
-			*this = *otherData; 
+			*this = *otherData;
 		}
 		return *this;
 	}
 
-
 	/**
 	* @brief Copy assignment operator.
 	*
-	* Assigns the content of another FileData object to this object.
+	* Assigns the content of another FileData object to this object using copy-and-swap idiom.
 	*
 	* @param otherData The FileData object to assign from.
 	* @return Reference to this FileData after assignment.
-	* @note This operator is marked noexcept and will not throw exceptions.
+	* @note This operator is conditionally noexcept based on whether FileData's copy construction
+	* and swap operations can throw exceptions.
 	*/
-	constexpr FileData& operator= ( const FileData& otherData ) noexcept
+	constexpr FileData& operator=( const FileData& otherData )
+		noexcept( std::is_nothrow_copy_constructible_v<FileData> )
 	{
 		auto temp = FileData( otherData );
 		std::swap( *this, temp );
 		return *this;
 	}
 
-
-
-
 	/**
 	* @brief Move assignment operator.
 	*
-	* Assigns the content of another FileData object to this object using move semantics.
+	* Assigns the content of another FileData object to this object using move semantics and swap.
 	*
 	* @param otherData The FileData object to move-assign from.
 	* @return Reference to this FileData after assignment.
-	* @note This operator is marked noexcept and will not throw exceptions.
+	* @note This operator is conditionally noexcept based on whether the swap operation
+	* between two FileData objects can throw exceptions.
 	*/
-	constexpr FileData& operator= ( FileData&& otherData )  noexcept
+	constexpr FileData& operator=( FileData&& otherData )
+		noexcept( std::is_nothrow_move_constructible_v<FileData> )
 	{
-		std::swap( *this, otherData );		
+		std::swap( *this, otherData );
 		return *this;
 	}
 
@@ -411,6 +483,9 @@ public:
 	{
 		if ( this->leftChild != nullptr ) delete this->leftChild;
 		if ( this->rightChild != nullptr ) delete this->rightChild;
+		this->leftChild = nullptr;
+		this->rightChild = nullptr;
+		this->parent = nullptr;
 	}
 
 
@@ -538,27 +613,21 @@ public:
 	*          - FileDataQual ensures Self can be treated as a FileData
 	*          - NodePointerQual ensures nodePtr is a pointer-to-member of FileData type
 	*
-	* @note The function uses perfect forwarding to preserve value categories.
-	*       It prevents modification of const objects using compile-time assertions.
+	* @note The function does NOT use perfect forwarding as it creates a temp object,
+	*  this prevents modification of the deduced object. We are also protected against
+	* const modifications via static asserts. I might swap this to std::expected. This
+	* would be for alternative return that holds data if it was const or it was
+	* already nullptr for example. Rather than the static asserts, this is because the 
+	* function throw the asserts even when we are trying to only get the node not modify it.
 	*
 	* @throws No exceptions are thrown by this function
-	*
-	* @code
-	* // Example: Setting left child of a node
-	* node->AccessNode<&FileData::leftChild>(std::make_optional(childNode));
-	*
-	* // Example: Getting parent node
-	* auto parent = node->AccessNode<&FileData::parent>();
-	* @endcode
 	*/
 	template<auto nodePtr, typename Self>
 		requires FileDataQual<Self>&&
-	NodePointerQual<nodePtr, Self>
-		constexpr std::optional<FileData*> AccessNode( this Self&& self,
-		std::optional<FileData*> newNode = std::nullopt )
+			NodePointerQual<nodePtr, Self>
+	constexpr std::optional<FileData*> AccessNode( this Self&& self,
+					std::optional<FileData*> newNode = std::nullopt )
 	{
-		auto thisObj = std::forward<Self>( self );
-
 		if ( newNode.has_value() )
 		{
 			if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
@@ -570,7 +639,7 @@ public:
 				if constexpr ( !std::is_const_v<std::remove_pointer_t<std::remove_reference_t<Self>>> )
 				{
 					// Set node pointer using pointer->*member syntax
-					thisObj->*nodePtr = newNode.value_or( nullptr );
+					self->*nodePtr = newNode.value_or( nullptr );
 				}
 
 			} else
@@ -582,7 +651,7 @@ public:
 				if constexpr ( !std::is_const_v<std::remove_reference_t<Self>> )
 				{
 					// Set node pointer using object.*member syntax
-					thisObj.*nodePtr = newNode.value_or( nullptr );
+					self.*nodePtr = newNode.value_or( nullptr );
 				}
 			}
 			return std::nullopt;
@@ -591,61 +660,17 @@ public:
 			if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
 			{
 				// Get node pointer through pointer->*member access, wrapping in optional
-				return ( thisObj->*nodePtr != nullptr ) ?
-					std::make_optional( thisObj->*nodePtr ) : std::nullopt;
+				return ( self->*nodePtr != nullptr ) ?
+					std::make_optional( self->*nodePtr ) : std::nullopt;
 			} else
 			{
 				// Get node pointer through object.*member access, wrapping in optional
-				return ( thisObj.*nodePtr != nullptr ) ?
-					std::make_optional( thisObj.*nodePtr ) : std::nullopt;
+				return ( self.*nodePtr != nullptr ) ?
+					std::make_optional( self.*nodePtr ) : std::nullopt;
 			}
 		}
 	}
 
-	/**
-	* @brief Retrieves a FileData node pointer member
-	*
-	* @tparam nodePtr Pointer-to-member of FileData that refers to another FileData*
-	* @tparam Self Type of the caller, constrained by FileDataQual concept
-	*
-	* @param self The object whose member is being accessed (this-parameter in C++23)
-	*
-	* @return std::optional<FileData*> Current value of the node pointer wrapped in an optional,
-	*         or std::nullopt if the pointer is null
-	*
-	* @details This function is a simplified read-only version of AccessNode. It provides
-	*          uniform access to node pointers regardless of how the FileData object is
-	*          accessed (by reference, pointer, or smart pointer).
-	*
-	* @note The function uses perfect forwarding to preserve value categories.
-	*       Unlike AccessNode, this function never modifies the object and only retrieves values.
-	*
-	* @throws No exceptions are thrown by this function
-	*
-	* @code
-	* // Example: Getting left child of a node
-	* auto leftChild = node->GetNodeRef<&FileData::leftChild>();
-	* @endcode
-	*/
-	template<auto nodePtr, typename Self>
-		requires FileDataQual<Self>&&
-	NodePointerQual<nodePtr, Self>
-		constexpr std::optional<FileData*> GetNodeRef( this Self&& self )
-	{
-		auto thisObj = std::forward<Self>( self );
-
-		if constexpr ( std::is_pointer_v<std::decay_t<Self>> )
-		{
-			// Get node pointer through pointer->*member access, wrapping in optional
-			return ( thisObj->*nodePtr != nullptr ) ?
-				std::make_optional( thisObj->*nodePtr ) : std::nullopt;
-		} else
-		{
-			// Get node pointer through object.*member access, wrapping in optional
-			return ( thisObj.*nodePtr != nullptr ) ?
-				std::make_optional( thisObj.*nodePtr ) : std::nullopt;
-		}
-	}
 };
 
 
@@ -665,13 +690,17 @@ public:
 * The concept uses std::decay_t to normalize reference types and remove cv-qualifiers.
 *
 * @note The implementation uses a disjunction of type traits and a requires expression
-*       for smart pointers, allowing for maximal flexibility.
+* for smart pointers, allowing for maximal flexibility. I also know this constrant is
+* completely unnecessary as "deducing this" is self constraning. this is just practice
+* for using template constrants.
 */
 template<typename Self>
-concept FileDataQual = std::is_same_v<FileData, std::decay_t<Self>> ||				
-	( std::is_pointer_v<std::decay_t<Self>> &&
-	  std::is_same_v<FileData, std::remove_pointer_t<std::decay_t<Self>>> ) ||
-	requires( Self s )
+concept FileDataQual = std::is_same_v<FileData, Self> ||
+std::is_same_v<FileData, std::decay_t<Self>> ||
+( ( std::is_pointer_v<std::decay_t<Self>> || std::is_pointer_v<Self> ) && 
+( std::is_same_v<FileData, std::remove_pointer_t<Self>> ||
+std::is_same_v<FileData, std::remove_pointer_t<std::decay_t<Self>>> ) ) ||
+requires( Self s )
 {
 	{ s.operator->() } -> std::convertible_to<FileData*>;
 };
