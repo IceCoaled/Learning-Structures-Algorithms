@@ -2,7 +2,7 @@
 //#include "Sorting.hpp"
 //#include "Searching.hpp"
 //#include "LinkedList.hpp"
-//#include "StdBinaryTree.hpp"
+#include "StdBinaryTree.hpp"
 
 
 
