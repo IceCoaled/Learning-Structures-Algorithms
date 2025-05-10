@@ -1,3 +1,6 @@
+# New Additions
+I have added some of my recent c++ solutions to a few leet code problems, most likely
+keep doing this - LeetCodeShenanigans.hpp
 
 # Learning Data Structures & Algorithms
 This Repo was my learning for some computers sience basic's for
