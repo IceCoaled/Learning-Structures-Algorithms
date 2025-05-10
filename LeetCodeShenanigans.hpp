@@ -328,7 +328,8 @@ public:
     public:
         /**
         * @brief Generates all permutations of a given vector of integers  - LeetCode
-        * problem 46. Permutations
+        * problem 46. Permutations and 47. Permutations II. Only difference is the
+        * addition of the permutation cleaning function
         *
         * This function creates all possible permutations of the input vector by utilizing
         * the GenPermutations generator function. Each permutation is added to a result vector.
