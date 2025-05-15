@@ -4,8 +4,9 @@
 #include <algorithm>
 #include <ranges>
 #include <span>
+#include <unordered_map>
 
-class Solution 
+class WildcardMatching
 {
 public:
      
@@ -151,258 +152,257 @@ public:
 
         return resultStr.empty() ? "0" : resultStr;
     }
+};
 
-
-
-    class JumpGame2
+class JumpGame2
+{
+private:
+    /**
+    * @brief Calculates the minimum number of jumps required
+    * to reach the end of an array - LeetCode
+    * problem 45. Jump Game II
+    *
+    * This function implements a greedy algorithm to determine the minimum number of jumps
+    * needed to reach the last element of the array from the first element. At each position,
+    * it maintains two pointers:
+    * - currentMax: The furthest position reachable with the current number of jumps
+    * - nextMax: The furthest position reachable with one more jump
+    *
+    * The algorithm advances through the array, updating these pointers and incrementing
+    * the jump counter whenever the current position reaches the boundary of the current jump.
+    *
+    * @param nums Reference to a vector containing jump distances at each position
+    * @return int The minimum number of jumps needed to reach the end,
+    * or bitwise NOT of 0 (~0x0) if it's impossible to reach the end
+    */
+    constexpr int CalcJumps( std::vector<int>& nums ) const
     {
-    private:
-        /**
-        * @brief Calculates the minimum number of jumps required
-        * to reach the end of an array - LeetCode
-        * problem 45. Jump Game II
-        *
-        * This function implements a greedy algorithm to determine the minimum number of jumps
-        * needed to reach the last element of the array from the first element. At each position,
-        * it maintains two pointers:
-        * - currentMax: The furthest position reachable with the current number of jumps
-        * - nextMax: The furthest position reachable with one more jump
-        *
-        * The algorithm advances through the array, updating these pointers and incrementing
-        * the jump counter whenever the current position reaches the boundary of the current jump.
-        *
-        * @param nums Reference to a vector containing jump distances at each position
-        * @return int The minimum number of jumps needed to reach the end,
-        * or bitwise NOT of 0 (~0x0) if it's impossible to reach the end
-        */
-        constexpr int CalcJumps( std::vector<int>& nums ) const
+        // Jump counter
+        int jumps = 0;
+
+        // Our vector pointers
+        // Data pointer
+        int* numsPtr = &nums[ 0 ];
+        // Vector head address
+        int* const numsHead = numsPtr;
+        // Last elements address in vector
+        int* const numsTail = std::to_address( nums.end() - 1 );
+
+        // Max index we can reach with jumps
+        // setting them to numsPtr is same as 0
+        int* currentMax = numsPtr;
+        // With jumps + 1
+        int* nextMax = currentMax;
+
+        while ( CompareAddress( numsPtr, numsTail ) == std::strong_ordering::less )
         {
-            // Jump counter
-            int jumps = 0;
-
-            // Our vector pointers
-            // Data pointer
-            int* numsPtr = &nums[ 0 ];
-            // Vector head address
-            int* const numsHead = numsPtr;
-            // Last elements address in vector
-            int* const numsTail = std::to_address( nums.end() - 1 );
-
-            // Max index we can reach with jumps
-            // setting them to numsPtr is same as 0
-            int* currentMax = numsPtr;
-            // With jumps + 1
-            int* nextMax = currentMax;
-
-            while ( CompareAddress( numsPtr, numsTail ) == std::strong_ordering::less )
+            // Update the furthest position we can reach
+            nextMax = MaxCalc( numsHead, numsTail, nextMax, numsPtr );
+            if ( nextMax == std::numeric_limits<int*>::max() )
             {
-                // Update the furthest position we can reach
-                nextMax = MaxCalc( numsHead, numsTail, nextMax, numsPtr );
-                if ( nextMax == std::numeric_limits<int*>::max() )
+                ++jumps;
+                break;
+            }
+
+            // If we've reached the boundary of our current jump
+            if ( CompareAddress( currentMax, numsPtr ) == std::strong_ordering::equal )
+            {
+                // We must make another jump
+                ++jumps;
+                currentMax = nextMax;
+
+                // If we can already reach the end, exit early
+                if ( CompareAddress( currentMax, numsTail ) != std::strong_ordering::less )
                 {
-                    ++jumps;
                     break;
                 }
 
-                // If we've reached the boundary of our current jump
                 if ( CompareAddress( currentMax, numsPtr ) == std::strong_ordering::equal )
                 {
-                    // We must make another jump
-                    ++jumps;
-                    currentMax = nextMax;
-
-                    // If we can already reach the end, exit early
-                    if ( CompareAddress( currentMax, numsTail ) != std::strong_ordering::less )
-                    {
-                        break;
-                    }
-
-                    if ( CompareAddress( currentMax, numsPtr ) == std::strong_ordering::equal )
-                    {
-                        return ~0x0;
-                    }
-
+                    return ~0x0;
                 }
-                ++numsPtr;
+
             }
-
-            return jumps;
+            ++numsPtr;
         }
 
+        return jumps;
+    }
 
-        /**
-        * @brief Calculates the maximum reachable position based on the current position and jump value
-        *
-        * This helper function computes the furthest position that can be reached from the current
-        * position and compares it with the previous maximum. It uses pointer arithmetic to
-        * calculate positions within the array boundaries.
-        *
-        * @param vecBaseAddr Pointer to the first element of the vector
-        * @param vecPeakAddr Pointer to the last element of the vector
-        * @param nextMax Current maximum pointer position reachable with jumps+1
-        * @param dataPtr Current position pointer in the array
-        * @return int* The new maximum reachable position as a pointer,
-        * or std::numeric_limits<int*>::max() if the end can be reached
-        *
-        * @note Returns the maximum of nextMax and the position reachable from dataPtr
-        * @note If the calculated position exceeds or reaches the last element, returns the max limit
-        * to indicate we can reach the end
-        */
-        constexpr int* MaxCalc( int* const vecBaseAddr,
-                                int* const vecPeakAddr,
-                                int* const nextMax,
-                                int* const dataPtr ) const
+
+    /**
+    * @brief Calculates the maximum reachable position based on the current position and jump value
+    *
+    * This helper function computes the furthest position that can be reached from the current
+    * position and compares it with the previous maximum. It uses pointer arithmetic to
+    * calculate positions within the array boundaries.
+    *
+    * @param vecBaseAddr Pointer to the first element of the vector
+    * @param vecPeakAddr Pointer to the last element of the vector
+    * @param nextMax Current maximum pointer position reachable with jumps+1
+    * @param dataPtr Current position pointer in the array
+    * @return int* The new maximum reachable position as a pointer,
+    * or std::numeric_limits<int*>::max() if the end can be reached
+    *
+    * @note Returns the maximum of nextMax and the position reachable from dataPtr
+    * @note If the calculated position exceeds or reaches the last element, returns the max limit
+    * to indicate we can reach the end
+    */
+    constexpr int* MaxCalc( int* const vecBaseAddr,
+                            int* const vecPeakAddr,
+                            int* const nextMax,
+                            int* const dataPtr ) const
+    {
+        // calculate next jump address
+        // If its greater than or equal to the 
+        // Address of the last element of nums
+        // We can short circuit the answer
+        int* nxtJmp = vecBaseAddr + ( ( dataPtr - vecBaseAddr ) + *dataPtr );
+        if ( nxtJmp >= vecPeakAddr )
         {
-            // calculate next jump address
-            // If its greater than or equal to the 
-            // Address of the last element of nums
-            // We can short circuit the answer
-            int* nxtJmp = vecBaseAddr + ( ( dataPtr - vecBaseAddr ) + *dataPtr );
-            if ( nxtJmp >= vecPeakAddr )
-            {
-                return std::numeric_limits<int*>::max();
-            }
-
-            // return the greater of the two
-            return std::max( nextMax, nxtJmp );
+            return std::numeric_limits<int*>::max();
         }
 
+        // return the greater of the two
+        return std::max( nextMax, nxtJmp );
+    }
 
-        /**
-        * @brief Compares two memory addresses using the spaceship operator
-        *
-        * This utility function provides a standardized way to compare two memory addresses
-        * and returns the result as a std::strong_ordering. It abstracts the address comparison
-        * operation to make the main algorithm cleaner and more readable.
-        *
-        * @param curReadAddr First pointer address to compare
-        * @param compAddr Second pointer address to compare
-        * @return std::strong_ordering The ordering relationship between the two addresses:
-        * - std::strong_ordering::less if curReadAddr < compAddr
-        * - std::strong_ordering::equal if curReadAddr == compAddr
-        * - std::strong_ordering::greater if curReadAddr > compAddr
-        *
-        * @note Utilizes the C++20 spaceship operator (<=>)
-        */
-        constexpr std::strong_ordering CompareAddress( int* const curReadAddr,
-                                                       int* const compAddr ) const
+
+    /**
+    * @brief Compares two memory addresses using the spaceship operator
+    *
+    * This utility function provides a standardized way to compare two memory addresses
+    * and returns the result as a std::strong_ordering. It abstracts the address comparison
+    * operation to make the main algorithm cleaner and more readable.
+    *
+    * @param curReadAddr First pointer address to compare
+    * @param compAddr Second pointer address to compare
+    * @return std::strong_ordering The ordering relationship between the two addresses:
+    * - std::strong_ordering::less if curReadAddr < compAddr
+    * - std::strong_ordering::equal if curReadAddr == compAddr
+    * - std::strong_ordering::greater if curReadAddr > compAddr
+    *
+    * @note Utilizes the C++20 spaceship operator (<=>)
+    */
+    constexpr std::strong_ordering CompareAddress( int* const curReadAddr,
+                                                   int* const compAddr ) const
+    {
+        return curReadAddr <=> compAddr;
+    }
+
+
+public:
+
+    /**
+    * @brief Public entry point for calculating minimum jumps to reach the end of an array
+    *
+    * This function serves as the public interface for the jump calculation algorithm.
+    * It handles edge cases and delegates the main calculation to the CalcJumps function.
+    *
+    * @param nums Reference to a vector containing jump distances at each position
+    * @return int The minimum number of jumps required to reach the end of the array,
+    * or 0 if the array is empty or has only one non-zero element,
+    * or bitwise NOT of 0 (~0x0) if it's impossible to reach the end
+    *
+    * @note Handles special cases:
+    * - Empty array: Returns 0
+    * - Single element array with non-zero value: Returns 0
+    * - Otherwise delegates to CalcJumps for the main algorithm
+    */
+    constexpr int jump( std::vector<int>& nums ) const
+    {
+        // Edge case checks
+        if ( nums.empty() || nums.size() == 1 && nums[ 0 ] != 0 )
         {
-            return curReadAddr <=> compAddr;
+            return 0;
         }
+        // Main Function
+        return CalcJumps( nums );
+    }
+};
 
-
-    public:
-
-        /**
-        * @brief Public entry point for calculating minimum jumps to reach the end of an array
-        *
-        * This function serves as the public interface for the jump calculation algorithm.
-        * It handles edge cases and delegates the main calculation to the CalcJumps function.
-        *
-        * @param nums Reference to a vector containing jump distances at each position
-        * @return int The minimum number of jumps required to reach the end of the array,
-        * or 0 if the array is empty or has only one non-zero element,
-        * or bitwise NOT of 0 (~0x0) if it's impossible to reach the end
-        *
-        * @note Handles special cases:
-        * - Empty array: Returns 0
-        * - Single element array with non-zero value: Returns 0
-        * - Otherwise delegates to CalcJumps for the main algorithm
-        */
-        constexpr int jump( std::vector<int>& nums ) const
-        {
-            // Edge case checks
-            if ( nums.empty() || nums.size() == 1 && nums[ 0 ] != 0 )
-            {
-                return 0;
-            }
-            // Main Function
-            return CalcJumps( nums );
-        }
-    };
 
 //#define PERMS_2
 
-    class Permutations
+class Permutations
+{
+public:
+    /**
+    * @brief Generates all permutations of a given vector of integers  - LeetCode
+    * problem 46. Permutations
+    *
+    * This function creates all possible permutations of the input vector by utilizing
+    * the GenPermutations generator function. Each permutation is added to a result vector.
+    *
+    * @param nums Reference to the vector of integers to permute
+    * @return std::vector<std::vector<int>> A vector containing all possible permutations
+    * of the input vector
+    *
+    * @note The order of permutations follows the lexicographical ordering produced by
+    * std::next_permutation
+    *
+    * @see GenPermutations
+    */
+#ifdef PERMS_2
+    std::vector<std::vector<int>> permuteUnique( std::vector<int>& nums ) const
+    #else
+    std::vector<std::vector<int>> permute( std::vector<int>& nums ) const
+    #endif
     {
-    public:
-        /**
-        * @brief Generates all permutations of a given vector of integers  - LeetCode
-        * problem 46. Permutations and 47. Permutations II. Only difference is the
-        * addition of the permutation cleaning function
-        *
-        * This function creates all possible permutations of the input vector by utilizing
-        * the GenPermutations generator function. Each permutation is added to a result vector.
-        *
-        * @param nums Reference to the vector of integers to permute
-        * @return std::vector<std::vector<int>> A vector containing all possible permutations
-        * of the input vector
-        *
-        * @note The order of permutations follows the lexicographical ordering produced by
-        * std::next_permutation
-        *
-        * @see GenPermutations
-        */
-#ifdef PERMS_2
-        std::vector<std::vector<int>> permuteUnique( std::vector<int>& nums ) const
-#else
-        std::vector<std::vector<int>> permute( std::vector<int>& nums ) const
-#endif
+        // Edge case
+        if ( nums.empty() )
         {
-            // Edge case
-            if ( nums.empty() )
-            {
-                return { {} };
-            }
-            
-            // Initialize our output variable
-            auto result = std::vector<std::vector<int>>();
-
-            // Generate all permutations
-            for ( auto&& perm : GenPermutations( std::span( nums.begin(), nums.end() ) ) )
-            {
-                result.push_back( { perm.begin(), perm.end() } );
-            }
-
-#ifdef PERMS_2
-            // Remove non unique permutations
-            CleanPermutations( result );
-#endif // PERMS_2
-
-            return result;
+            return { {} };
         }
 
-    private:
-        /**
-        * @brief Generator coroutine that yields all permutations of a vector as spans
-        *
-        * This function uses C++20 coroutines to efficiently generate all permutations
-        * of the input vector without creating copies of the data. Instead, it yields
-        * spans that view the permuted elements in-place.
-        *
-        * @param numsSpan span of nums the vector of integers to permute
-        * @return std::generator<std::span<int>> A generator that yields spans representing
-        *         each permutation of the input vector
-        *
-        * @note The order of permutations follows the lexicographical ordering produced by
-        *       std::next_permutation
-        * @note Requires C++20 or later for std::generator and std::span support
-        *
-        * @warning The caller must not modify the input vector while iterating through
-        *          the generator results
-        */
-        std::generator<std::span<int>> GenPermutations( std::span<int> numsSpan ) const
-        {
-            // Sort first, otherwise we miss permutations
-            std::ranges::sort( numsSpan );
+        // Initialize our output variable
+        auto result = std::vector<std::vector<int>>();
 
-            // Loop till there is no permutations left
-            do
-            {
-                co_yield  std::span( numsSpan.begin(), numsSpan.end() );
-            } while ( std::next_permutation( numsSpan.begin(), numsSpan.end() ) );
-            co_return;
+        // Generate all permutations
+        for ( auto&& perm : GenPermutations( std::span( nums.begin(), nums.end() ) ) )
+        {
+            result.push_back( { perm.begin(), perm.end() } );
         }
+
+    #ifdef PERMS_2
+                // Remove non unique permutations
+        CleanPermutations( result );
+    #endif // PERMS_2
+
+        return result;
+    }
+
+private:
+    /**
+    * @brief Generator coroutine that yields all permutations of a vector as spans
+    *
+    * This function uses C++20 coroutines to efficiently generate all permutations
+    * of the input vector without creating copies of the data. Instead, it yields
+    * spans that view the permuted elements in-place.
+    *
+    * @param numsSpan span of nums the vector of integers to permute
+    * @return std::generator<std::span<int>> A generator that yields spans representing
+    *         each permutation of the input vector
+    *
+    * @note The order of permutations follows the lexicographical ordering produced by
+    *       std::next_permutation
+    * @note Requires C++20 or later for std::generator and std::span support
+    *
+    * @warning The caller must not modify the input vector while iterating through
+    *          the generator results
+    */
+    std::generator<std::span<int>> GenPermutations( std::span<int> numsSpan ) const
+    {
+        // Sort first, otherwise we miss permutations
+        std::ranges::sort( numsSpan );
+
+        // Loop till there is no permutations left
+        do
+        {
+            co_yield  std::span( numsSpan.begin(), numsSpan.end() );
+        } while ( std::next_permutation( numsSpan.begin(), numsSpan.end() ) );
+        co_return;
+    }
 
 
 #ifdef PERMS_2
@@ -418,19 +418,136 @@ public:
     * This vector is modified in-place to contain only unique permutations
     *
     * @note The function modifies the original vector and may change the order of permutations
+    * @note After this function completes, permutations will be sorted in lexicographical order
+    * @note Time complexity is O(M log M) where M is the number of permutations
+    * (dominated by the sorting operation)
+    *
     */
-        void CleanPermutations( std::vector<std::vector<int>>& permutations ) const
-        {
-            // Remove non unqiue 
-            auto nonUQ = std::ranges::unique( permutations );
-            permutations.erase( nonUQ.begin(), nonUQ.end() );
+    void CleanPermutations( std::vector<std::vector<int>>& permutations ) const
+    {
+        // Remove non unqiue 
+        auto nonUQ = std::ranges::unique( permutations );
+        permutations.erase( nonUQ.begin(), nonUQ.end() );
 
-            // Sort and remove the remaining non unqiue chars
-            std::ranges::sort( permutations );
+        // Sort and remove the remaining non unqiue chars
+        std::ranges::sort( permutations );
 
-            nonUQ = std::ranges::unique( permutations );
-            permutations.erase( nonUQ.begin(), nonUQ.end() );
-        }
+        nonUQ = std::ranges::unique( permutations );
+        permutations.erase( nonUQ.begin(), nonUQ.end() );
+    }
 #endif // PERMS_2
-    };
+};
+
+
+class RotateImage
+{
+public:
+
+    /**
+    * @brief Rotates a square matrix 90 degrees clockwise in-place,
+    * 48. Rotate Image.
+    *
+    * @param matrix Reference to a square matrix (vector of vectors of integers)
+    * that will be modified in-place
+    *
+    * @see XorSwap() Private helper method used for efficient swapping without temporary variables
+    */
+    void rotate( std::vector<std::vector<int>>& matrix )
+    {
+        // Get size of matrix colums, and rows
+        auto N = matrix.size();
+
+        // Loop through matrix and do 90deg clockwise rotation
+        for ( int i = 0; i < N >> 1; ++i )
+        {
+            for ( int j = i; j < N - i - 1; ++j )
+            {
+                // Swap values
+                XorSwap( matrix[ i ][ j ], matrix[ N - 1 - j ][ i ] );
+                XorSwap( matrix[ N - 1 - j ][ i ], matrix[ N - 1 - i ][ N - 1 - j ] );
+                XorSwap( matrix[ N - 1 - i ][ N - 1 - j ], matrix[ j ][ N - 1 - i ] );
+            }
+        }
+    }
+
+
+private:
+    /**
+    * @brief Swaps two integers using XOR operations without a temporary variable
+    *
+    * @param a Reference to the first integer to be swapped
+    * @param b Reference to the second integer to be swapped
+    */
+    __inline void XorSwap( int& a, int& b )
+    {
+        a ^= b;
+        b ^= a;
+        a ^= b;
+    }
+};
+
+
+
+/*
+* This one is a bit slower as i made a solution that uses 
+* the sorted string for our hash key. As well as using a hashmap.
+* There is several more performative was to solve this.
+*/
+class GroupAnagrams
+{
+public:
+    /**
+    * @brief Groups anagrams from a vector of strings, 49. Group Anagrams.
+    *
+    * @param strs Reference to a vector of strings to be grouped
+    * @return std::vector<std::vector<std::string>> A vector of vectors where each inner vector
+    *         contains a group of anagrams
+    */
+    constexpr std::vector<std::vector<std::string>> groupAnagrams( std::vector<std::string>& strs )
+    {
+        // Counter for tracking group indices
+        std::ptrdiff_t cnt = 0;
+        // Final result container
+        std::vector<std::vector<std::string>> result;
+
+        // Map to store hash value -> index in result vector
+        std::unordered_map<std::string, std::ptrdiff_t> hash;
+
+        // Process strings in reverse order (preserves relative order of anagrams)
+        for ( auto& str : std::views::reverse( strs ) )
+        {
+            // Sort string 
+            auto strVal = SortStr( str );
+
+            // Check if we've seen this hash value before
+            if ( auto it = hash.find( strVal ); it != hash.end() )
+            {
+                // String with same hash exists, add to that group
+                result[ it->second ].push_back( str );
+            } else
+            {
+                // Create new result vmap entry
+                result.push_back( std::vector<std::string>( 1, str ) );
+                hash.try_emplace( strVal, cnt );
+                ++cnt;  //< Increment group counter
+            }
+        }
+        return result;
+    }
+
+private:
+
+    /**
+    * @brief Creates a sorted version of the input string.
+    *
+    * @param str Reference to the input string to be sorted
+    * @return std::string A new string containing all characters from the input
+    *         sorted in lexicographical (ascending) order
+    */
+    constexpr std::string SortStr( std::string str ) const
+    {
+        std::sort( str.begin(), str.end() );
+        return str;
+    }
+
 };
