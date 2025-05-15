@@ -551,3 +551,58 @@ private:
     }
 
 };
+
+
+class Pow
+{
+public:
+
+    /**
+    * @brief Calculates x raised to the power of n,
+    * 50. Pow(x, n)
+    * @param x The base value (reference to a double)
+    * @param n The exponent value (integer)
+    * @return constexpr double The result of x^n
+    */
+    constexpr double myPow( double x, int n )
+    {
+        // Handle edge cases
+        if ( n == 0 )
+        {
+            return 1.0;
+        }
+        if ( x == 0 )
+        {
+            return 0.0;
+        }
+
+        // Handle INT_MIN by breaking it into two steps
+        if ( n == INT_MIN )
+        {
+            x = 1.0 / x;
+            return myPow( x * x, -( n >> 1 ) );
+        }
+
+        // Convert negative exponent to positive
+        if ( n < 0 )
+        {
+            x = 1.0 / x;
+            n = -n;
+        }
+
+        // Exponentiation by squaring
+        double result = 1.0;
+        while ( n > 0 )
+        {
+            // If n is odd, multiply result by x
+            if ( n % 2 == 1 )
+            {
+                result *= x;
+            }
+            // Square the base and halve the exponent
+            x *= x;
+            n >>= 1;
+        }
+        return result;
+    }
+};
