@@ -825,6 +825,8 @@ public:
     * (GCC, Clang, MSVC) to validate numeric literals in real-time. It uses a finite state machine
     * approach to parse various numeric formats including integers, floating-point numbers,
     * scientific notation, hexadecimal literals, and type suffixes.
+    * I was digging in and around here on llvm/clang stuff to get some ideas.
+    * https://github.com/llvm/llvm-project/blob/main/clang/lib/Lex/LiteralSupport.cpp
     *
     * @param s The string to validate as a numeric literal
     *
