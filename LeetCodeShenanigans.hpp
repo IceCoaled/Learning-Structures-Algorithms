@@ -813,19 +813,20 @@ public:
 };
 
 
+
+
 class ValidNumber
 {
 
 public:
     /**
-    * @brief Validates whether a string represents a valid numeric literal using finite state machine parsing, 
-    * 65. Valid Number. ive made some updates since the first implementation for the leet code entry
+    * @brief Validates whether a string represents a valid numeric literal using finite state machine parsing,
+    * 65. Valid Number.
     *
     * This function implements a lexical analyzer similar to those used in production compilers
     * (GCC, Clang, MSVC) to validate numeric literals in real-time. It uses a finite state machine
     * approach to parse various numeric formats including integers, floating-point numbers,
     * scientific notation, hexadecimal literals, and type suffixes.
-    * I was digging in and around here on llvm/clang stuff to get some ideas.
     * https://github.com/llvm/llvm-project/blob/main/clang/lib/Lex/LiteralSupport.cpp
     *
     * @param s The string to validate as a numeric literal
@@ -1126,15 +1127,15 @@ public:
             lastChar = c;
         }
 
-        // This is here to cover a edge case of a leet code check
-        // For the f/F suffix not being valid.
-//#define LEEETCODE
-    #ifdef LEETCODE
-        if ( lastChar == fSuffix || lastChar == capFSuffix )
+        // This is here to cover a edge cased of a leet code check
+        // For the letters as last character
+//#define LEETCODE
+#ifdef LEETCODE
+        if ( IsSuffix( lastChar ) )
         {
             return false;
         }
-    #endif // !LEETCODE
+#endif // !LEETCODE
 
 
             // Compare against where we know are valid ending states
