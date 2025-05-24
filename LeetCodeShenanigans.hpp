@@ -813,13 +813,13 @@ public:
 };
 
 
-
 class ValidNumber
 {
 
 public:
     /**
-    * @brief Validates whether a string represents a valid numeric literal using finite state machine parsing, 65. Valid Number
+    * @brief Validates whether a string represents a valid numeric literal using finite state machine parsing, 
+    * 65. Valid Number. ive made some updates since the first implementation for the leet code entry
     *
     * This function implements a lexical analyzer similar to those used in production compilers
     * (GCC, Clang, MSVC) to validate numeric literals in real-time. It uses a finite state machine
@@ -888,11 +888,11 @@ public:
     *
     * @author IceCoaled
     * @date 2025-05-24
-    * @version 1.0
+    * @version 1.1
     *
     * **Implementation Notes:**
     * - Uses `using enum LiteralState` for cleaner switch statements (C++20 feature)
-    * - Tracks last three characters for complex suffix validation (e.g., "LL", "UL")
+    * - Tracks last two characters for complex suffix validation (e.g., "LL", "UL")
     * - Single-pass algorithm with O(n) time complexity and O(1) space complexity
     * - Inspired by production compiler lexical analyzers for robust numeric parsing
     */
@@ -951,7 +951,13 @@ public:
                     // Or check if we are a entering
                     // Into a hex value
                 case  Integer:
-                    if ( std::isdigit( c ) )
+                    if ( ( c == xSuffix || c == capXSuffix ) && lastChar == '0' )
+                    {
+                        format = Hex;
+                    } else if ( IsSuffix( c ) )
+                    {
+                        format = Suffix;
+                    } else if ( std::isdigit( c ) )
                     {
                         format = Integer;
                     } else if ( c == '.' )
@@ -960,9 +966,6 @@ public:
                     } else if ( c == exponentSym || c == capExponentSym )
                     {
                         format = Exponent;
-                    } else if ( ( c == xSuffix || c == capXSuffix ) && lastChar == '0' )
-                    {
-                        format = Hex;
                     } else
                     {
                         return false;
@@ -1001,7 +1004,7 @@ public:
                 case  Fraction:
                     if ( IsSuffix( c ) )
                     {
-                        format = SuffixMaj;
+                        format = Suffix;
                     } else if ( std::isdigit( c ) )
                     {
                         format = Fraction;
@@ -1051,7 +1054,7 @@ public:
                         format = ExpInt;
                     } else if ( IsSuffix( c ) )
                     {
-                        format = SuffixMaj;
+                        format = Suffix;
                     } else
                     {
                         return false;
@@ -1061,39 +1064,48 @@ public:
                     // See below for valid ones
                     // It covers all the way to cpp23 uz,z,UZ,Z 
                     // Suffix's
-                case  SuffixMaj:
-                    if ( lastChar == fSuffix || lastChar == capFSuffix )
+                case  Suffix:
+                    if ( CompareSuffix( lastChar, fSuffix, capFSuffix ) )
                     {
-                        return false;
-                    } else if ( lastChar == lSuffix || lastChar == capLSuffix &&
-                                c == lSuffix || c == capLSuffix || c == xSuffix ||
-                                c == capXSuffix )
+                        return false;//< If it was a float suffix and we are still here we are fucked
+                    }
+                    // Check for ssize_t /size_t (*cpp23)
+                    else if ( CompareSuffix( lastChar, uSuffix, capUSuffix ) &&
+                              CompareSuffix( c, lSuffix, capLSuffix ) ||
+                              CompareSuffix( c, zSuffix, capZSuffix ) )
                     {
-                        format = SuffixMin;
-                    } else if ( lastChar == uSuffix || lastChar == capUSuffix &&
-                                c == lSuffix || c == capLSuffix || c == zSuffix ||
-                                c == capZSuffix )
+                        format = Suffix;
+                    }
+                    // Check for ul, UL, ull, ULL
+                    else if ( CompareSuffix( lastChar, uSuffix, capUSuffix ) &&
+                              CompareSuffix( c, lSuffix, capLSuffix ) ||
+                              CompareSuffix( lastTwo, uSuffix, capUSuffix ) &&
+                              CompareSuffix( lastChar, lSuffix, capLSuffix ) &&
+                              CompareSuffix( c, lSuffix, capLSuffix ) )
                     {
-                        format = SuffixMin;
+                        format = Suffix;
+                    }
+                    // Check for lu, LU, llu, LLU
+                    else if ( CompareSuffix( lastChar, lSuffix, capLSuffix ) &&
+                              CompareSuffix( c, uSuffix, capUSuffix ) ||
+                              CompareSuffix( lastTwo, lSuffix, capLSuffix ) &&
+                              CompareSuffix( lastChar, lSuffix, capLSuffix ) &&
+                              CompareSuffix( c, uSuffix, capUSuffix ) )
+                    {
+                        format = Suffix;
+                    }
+                    // Our Check if we are in the middle of a LLU or ULL suffix
+                    else if ( CompareSuffix( lastChar, lSuffix, capLSuffix ) &&
+                              CompareSuffix( c, lSuffix, capLSuffix ) ||
+                              CompareSuffix( lastChar, uSuffix, capUSuffix ) &&
+                              CompareSuffix( c, lSuffix, capLSuffix ) )
+                    {
+                        format = Suffix;
                     } else
                     {
                         return false;
                     }
                     break;
-                    // If we are the remaining character in the multi
-                    // Character suffix's go to end
-                case  SuffixMin:
-                    if ( lastChar == lSuffix || lastChar == capLSuffix &&
-                         c == xSuffix || c == capXSuffix )
-                    {
-                        format = End;
-                    } else
-                    {
-                        return false;
-                    }
-                    break;
-                case  End:
-                    return false;
                 default: return false;
             }
 
@@ -1116,19 +1128,18 @@ public:
 
         // This is here to cover a edge case of a leet code check
         // For the f/F suffix not being valid.
-#define LEEETCODE
-#ifndef LEETCODE
+//#define LEEETCODE
+    #ifdef LEETCODE
         if ( lastChar == fSuffix || lastChar == capFSuffix )
         {
             return false;
         }
-#endif // !LEETCODE
+    #endif // !LEETCODE
 
 
             // Compare against where we know are valid ending states
-        return format == End || format == Hex || format == Integer || format == Fraction ||
-            format == ExpInt || format == SuffixMaj || format == SuffixMin ||
-            format == Percent && std::isdigit( lastTwo );
+        return  format == Hex || format == Integer || format == Fraction ||
+            format == ExpInt || format == Suffix || format == Percent && std::isdigit( lastTwo );
     }
 
 private:
@@ -1148,14 +1159,24 @@ private:
         switch ( inputC )
         {
             case fSuffix:
+            case capFSuffix:
             case lSuffix:
+            case capLSuffix:
             case uSuffix:
+            case capUSuffix:
             case xSuffix:
+            case capXSuffix:
             case zSuffix:
+            case capZSuffix:
                 return true;
             default:
                 return false;
         }
+    }
+
+    constexpr bool CompareSuffix( const char& inputC, const char& lowSufx, const char& hihSufx ) const
+    {
+        return inputC == lowSufx || inputC == hihSufx;
     }
 
 
@@ -1174,9 +1195,7 @@ private:
         Exponent,
         ExpSign,
         ExpInt,
-        SuffixMaj,
-        SuffixMin,
-        End,
+        Suffix,
     };
 
     /**
@@ -1189,8 +1208,6 @@ private:
     * ll = long long
     * ul = unsigned long
     * ull unsigned long long
-    * lx unsigned long
-    * lxx unsigned long long
     */
     static constexpr auto exponentSym = 'e';
     static constexpr auto capExponentSym = 'E';
