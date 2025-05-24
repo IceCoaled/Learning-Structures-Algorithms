@@ -6,6 +6,17 @@
 #include <span>
 #include <unordered_map>
 
+
+//Definition for singly-linked list.
+struct ListNode
+{
+    int val;
+    ListNode* next;
+    ListNode(): val( 0 ), next( nullptr ) {}
+    explicit ListNode( int x ): val( x ), next( nullptr ) {}
+    ListNode( int x, ListNode* next ): val( x ), next( next ) {}
+};
+
 class WildcardMatching
 {
 public:
@@ -586,7 +597,6 @@ public:
         // Convert negative exponent to positive
         if ( n < 0 )
         {
-            x = 1.0 / x;
             n = -n;
         }
 
@@ -605,4 +615,592 @@ public:
         }
         return result;
     }
+};
+
+
+
+
+class MaximumSubarray
+{
+public:
+    /**
+    * @brief Finds the maximum sum of any contiguous subarray within the given array
+    *
+    * @note After a few searches trying to mix an issue i was having i came across
+    * Kadane's Algorithm. so this is the revision to change my approach.
+    *
+    * @param nums Reference to a vector of integers to search for maximum subarray
+    * @return constexpr int32_t The maximum sum found in any contiguous subarray
+    */
+    constexpr int32_t maxSubArray( std::vector<int32_t>& nums ) const
+    {
+        // Edge cases
+        if ( nums.empty() )
+        {
+            return 0;
+        }
+        if ( nums.size() == 1 )
+        {
+            return nums[ 0 ];
+        }
+
+        // Our result
+        int32_t result = nums[ 0 ];
+        // Sub array sum
+        int32_t sum = result;
+
+        // Loop through each possible sub array and figure out the largest sum
+        for ( size_t i = 1; i < nums.size(); ++i )
+        {
+            sum = std::max( sum + nums[ i ], nums[ i ] );
+            result = std::max( result, sum );
+        }
+        return result;
+    }
+
+private:
+
+};
+
+
+#include <iostream>
+#include <bitset>
+#include <cstring> 
+#include <print>
+#include <vector>
+#include <generator>
+#include <algorithm>
+#include <ranges>
+#include <span>
+#include <unordered_map>
+#include <numeric>
+#include <cassert>
+
+
+
+class LengthOfLastWord
+{
+private:
+
+public:
+    /**
+    * @brief Calculates the length of the last word in a string, 58. Length of Last Word.
+    *
+    *
+    * @param s The input string to analyze
+    * @return int32_t The length of the last word in the string
+    *                 Returns 0 if no word is found or if the string is empty
+    *
+    */
+    constexpr int32_t lengthOfLastWord( std::string s ) const
+    {
+        // Our counters
+        size_t firstLetterIndex = s.length() - 1;
+        size_t lastLetterIndex = firstLetterIndex;
+        // flag to introduce short circuit counting
+        // counting as in decrementing `firstLetterIndex`
+        bool count = false;
+
+        // Check if we underflowed to max uint64 (0xFFFFFFFFFFFFFFFF)
+        // This checks for string length of 0
+        if ( firstLetterIndex == ~0x0UL ) [[unlikely]]
+        {
+            return 0;
+        } else
+        {
+            // Loop the string in reverse
+            for ( const auto& c : std::views::reverse( s ) )
+            {
+                // Short circuit decrement / breakout
+                // If flag is active and current char is a-z
+                if ( count && ( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) ) )
+                {
+                    --firstLetterIndex;
+                }
+                // If the flag is active and current char isnt a-z breakout
+                else if ( count && ( !( c >= 'a' && c <= 'z' ) || !( c >= 'A' && c <= 'Z' ) ) )
+                {
+                    break; //< done
+                }
+                // If flag isnt active but the current char is a-z we set our flag and
+                // Decrement the counter
+                else if ( !count && ( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) ) )
+                {
+                    count = true;
+                    --firstLetterIndex;
+                } else
+                {
+                    --firstLetterIndex;
+                    --lastLetterIndex;
+                }
+            }
+        }
+        // Compiler was complaining about size_t to int32_t, solution
+        // Read only the 32 bits we need to int32_t, this isnt recommended
+        // Typically but i know its safe here and it shuts the compiler up
+        return ( ( lastLetterIndex - firstLetterIndex ) & 0xFFFFFFFF );
+    }
+
+};
+
+
+
+class RotateList
+{
+
+public:
+
+    /**
+    * @brief Rotates a linked list to the right by k positions, 61. Rotate List
+    *
+    *
+    * @param head Pointer to the head node of the linked list to rotate
+    * @param k Number of positions to rotate the list to the right
+    *
+    * @return ListNode* Pointer to the new head of the rotated list, or nullptr
+    *         if the input list is empty
+    *
+    * @warning The current overflow calculation logic may produce unexpected results
+    *          when k is significantly larger than the list size
+    *
+    */
+    ListNode* rotateRight( ListNode* head, int k )
+    {
+        // Edge cases
+        if ( head == nullptr )
+        {
+            return nullptr;
+        } else if ( head->next == nullptr )
+        {
+            return head;
+        }
+
+        // Our traversal node
+        ListNode* traverse = head;
+        // Vector to hold list pointers
+        std::vector<ListNode*> nodeAddrs = { nullptr };
+
+        // Loop our Nodes and add them to vector
+        while ( traverse != nullptr )
+        {
+            nodeAddrs.push_back( traverse );
+            traverse = traverse->next;
+        }
+
+        // This is faster than modifying the loop above
+        nodeAddrs.erase( nodeAddrs.begin() );
+
+        // Calculate the overflow of rotations
+        // If k > szList
+        auto szList = nodeAddrs.size();
+        k %= szList;
+
+        // Edge case k == szList
+        if ( k == 0 )
+        {
+            return head;
+        }
+
+        // Connect the tail to the head
+        nodeAddrs.back()->next = head;
+
+        // Disconnect the list where the new tail is
+        nodeAddrs[ szList - k - 1 ]->next = nullptr;
+
+        // return the new head
+        return nodeAddrs[ szList - k ];
+    }
+};
+
+
+
+class ValidNumber
+{
+
+public:
+    /**
+    * @brief Validates whether a string represents a valid numeric literal using finite state machine parsing, 65. Valid Number
+    *
+    * This function implements a lexical analyzer similar to those used in production compilers
+    * (GCC, Clang, MSVC) to validate numeric literals in real-time. It uses a finite state machine
+    * approach to parse various numeric formats including integers, floating-point numbers,
+    * scientific notation, hexadecimal literals, and type suffixes.
+    *
+    * @param s The string to validate as a numeric literal
+    *
+    * @return true if the string represents a valid numeric literal, false otherwise
+    *
+    * @note This function is constexpr and can be evaluated at compile-time for constant expressions.
+    *
+    * **Supported Formats:**
+    * - **Integers**: `42`, `-123`, `+456`
+    * - **Floating-point**: `.5`, `3.14`, `-2.718`, `+1.0`
+    * - **Scientific notation**: `1e10`, `2.5E-3`, `-1.23e+45`
+    * - **Hexadecimal**: `0x1A2B`, `0X3C4D` (when prefixed with integer)
+    * - **Type suffixes**:
+    * - `f/F` (float): `3.14f`
+    * - `l/L` (long): `123L`
+    * - `u/U` (unsigned): `456U`
+    * - `ll/LL` (long long): `789LL`
+    * - `ul/UL`, `uz/UZ` (unsigned combinations): `123UL`
+    *
+    * **State Machine Transitions:**
+    * ```
+    * Start → [+/-] → Sign → [0-9] → Integer → [.] → Fraction
+    *   ↓       ↓              ↓         ↓         ↓
+    *  [.]     [.]            [eE]      [eE]      [eE]
+    *   ↓       ↓              ↓         ↓         ↓
+    * Percent Percent      Exponent  Exponent  Exponent
+    *                          ↓         ↓         ↓
+    *                      [+/-|0-9] [+/-|0-9] [+/-|0-9]
+    *                          ↓         ↓         ↓
+    *                       ExpInt    ExpInt    ExpInt
+    *                          ↓         ↓         ↓
+    *                      [suffix]  [suffix]  [suffix]
+    *                          ↓         ↓         ↓
+    *                      SuffixMaj SuffixMaj SuffixMaj
+    * ```
+    * @detail This function could easily be modified to get
+    * proper numeric type check by returning the literal state
+    * directly and comparing it to different states. this would
+    * require a few changes, but easily implemented. See below
+    * for an example of what it could be.
+    * @example
+    * ```cpp
+    * Parser parser;
+    * assert(parser.isNumber("123")); -> return // Integer
+    * assert(parser.isNumber("-3.14")); ->      // Negative float
+    * assert(parser.isNumber("2.5e-3")); ->     // Scientific notation
+    * assert(parser.isNumber("0x1A2B")); ->     // Hexadecimal
+    * assert(parser.isNumber("123.45f")); ->    // Float with suffix
+    * assert(parser.isNumber("789LL")); ->      // Long long suffix
+    * assert(!parser.isNumber("12.34.56")); ->  // Invalid: multiple dots
+    * assert(!parser.isNumber("abc")); ->       // Invalid: non-numeric
+    * ```
+    *
+    * @warning The function assumes well-formed suffix combinations. Invalid suffix sequences
+    * like "123ff" or "456lul" will be rejected.
+    *
+    * @see LiteralState enum for detailed state definitions
+    * @see IsSuffix() helper function for suffix validation
+    *
+    * @author IceCoaled
+    * @date 2025-05-24
+    * @version 1.0
+    *
+    * **Implementation Notes:**
+    * - Uses `using enum LiteralState` for cleaner switch statements (C++20 feature)
+    * - Tracks last three characters for complex suffix validation (e.g., "LL", "UL")
+    * - Single-pass algorithm with O(n) time complexity and O(1) space complexity
+    * - Inspired by production compiler lexical analyzers for robust numeric parsing
+    */
+    constexpr bool isNumber( const std::string& s ) const
+    {
+        using enum LiteralState;
+
+        // Last chars used to compare edge states
+        char lastThree = '\0';
+        char lastTwo = '\0';
+        char lastChar = '\0';
+
+        // Our literal start point
+        LiteralState format = Start;
+
+        // loop throw literals to check if they are
+        // Valid numeric's
+        for ( const auto& c : s )
+        {
+
+            switch ( format )
+            {
+                case Start:
+                    // Check for positive/ negative
+                    // Percent
+                    // Or just straight digits
+                    if ( c == '+' || c == '-' )
+                    {
+                        format = Sign;
+                    } else if ( c == '.' )
+                    {
+                        format = Percent;
+                    } else if ( std::isdigit( c ) )
+                    {
+                        format = Integer;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check for digits or percent
+                case  Sign:
+                    if ( std::isdigit( c ) )
+                    {
+                        format = Integer;
+                    } else if ( c == '.' )
+                    {
+                        format = Percent;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check for digits, percent, 
+                    // Or `e/E` exponent symbol
+                    // Or check if we are a entering
+                    // Into a hex value
+                case  Integer:
+                    if ( std::isdigit( c ) )
+                    {
+                        format = Integer;
+                    } else if ( c == '.' )
+                    {
+                        format = Percent;
+                    } else if ( c == exponentSym || c == capExponentSym )
+                    {
+                        format = Exponent;
+                    } else if ( ( c == xSuffix || c == capXSuffix ) && lastChar == '0' )
+                    {
+                        format = Hex;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check if we are still a hex 
+                    // Once in the hex check we
+                    // Are locked in it Either 
+                    // Returns true or false
+                case Hex:
+                    if ( std::isxdigit( c ) )
+                    {
+                        format = Hex;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check for digit to build a fraction( percentage value )
+                    // Or check for exponent symbol 
+                case  Percent:
+                    if ( std::isdigit( c ) )
+                    {
+                        format = Fraction;
+                    } else if ( c == exponentSym || c == capExponentSym )
+                    {
+                        format = Exponent;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check for a suffix, or more digits 
+                    // For our percent value, or exponent
+                    // Symbol
+                case  Fraction:
+                    if ( IsSuffix( c ) )
+                    {
+                        format = SuffixMaj;
+                    } else if ( std::isdigit( c ) )
+                    {
+                        format = Fraction;
+                    } else if ( c == exponentSym || c == capExponentSym )
+                    {
+                        format = Exponent;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Check to make sure the user didnt enter
+                    // Some weird stuff like `+.e13`, but we 
+                    // Do check for a exponent sign positive or
+                    // Negative, or the start of our exponent digits
+                case  Exponent:
+                    if ( !std::isdigit( lastThree ) && lastTwo == '.' )
+                    {
+                        return false;
+                    } else if ( c == '+' || c == '-' )
+                    {
+                        format = ExpSign;
+                    } else if ( std::isdigit( c ) )
+                    {
+                        format = ExpInt;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // If there is a sign for the exponent
+                    // It must now be a digit or its invalid
+                case  ExpSign:
+                    if ( std::isdigit( c ) )
+                    {
+                        format = ExpInt;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Checking for more exponent digits
+                    // Or our suffix
+                case  ExpInt:
+                    if ( std::isdigit( c ) )
+                    {
+                        format = ExpInt;
+                    } else if ( IsSuffix( c ) )
+                    {
+                        format = SuffixMaj;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // Checking for specific suffixes
+                    // See below for valid ones
+                    // It covers all the way to cpp23 uz,z,UZ,Z 
+                    // Suffix's
+                case  SuffixMaj:
+                    if ( lastChar == fSuffix || lastChar == capFSuffix )
+                    {
+                        return false;
+                    } else if ( lastChar == lSuffix || lastChar == capLSuffix &&
+                                c == lSuffix || c == capLSuffix || c == xSuffix ||
+                                c == capXSuffix )
+                    {
+                        format = SuffixMin;
+                    } else if ( lastChar == uSuffix || lastChar == capUSuffix &&
+                                c == lSuffix || c == capLSuffix || c == zSuffix ||
+                                c == capZSuffix )
+                    {
+                        format = SuffixMin;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                    // If we are the remaining character in the multi
+                    // Character suffix's go to end
+                case  SuffixMin:
+                    if ( lastChar == lSuffix || lastChar == capLSuffix &&
+                         c == xSuffix || c == capXSuffix )
+                    {
+                        format = End;
+                    } else
+                    {
+                        return false;
+                    }
+                    break;
+                case  End:
+                    return false;
+                default: return false;
+            }
+
+            // These are checks to add in our
+            // Comparand last characters
+            // This is done like this so
+            // We actually get the proper 
+            // Characters 
+            if ( lastTwo != '\0' )
+            {
+                lastThree = lastTwo;
+            }
+
+            if ( lastChar != '\0' )
+            {
+                lastTwo = lastChar;
+            }
+            lastChar = c;
+        }
+
+        // This is here to cover a edge case of a leet code check
+        // For the f/F suffix not being valid.
+#define LEEETCODE
+#ifndef LEETCODE
+        if ( lastChar == fSuffix || lastChar == capFSuffix )
+        {
+            return false;
+        }
+#endif // !LEETCODE
+
+
+            // Compare against where we know are valid ending states
+        return format == End || format == Hex || format == Integer || format == Fraction ||
+            format == ExpInt || format == SuffixMaj || format == SuffixMin ||
+            format == Percent && std::isdigit( lastTwo );
+    }
+
+private:
+
+    /**
+    * @brief This function quickly checks if the input char
+    * is a suffix char.
+    *
+    * @param inputC this is the character to be checked
+    *
+    * @detail See below for all suffix chars
+    *
+    * @return True if input char is equal to a suffix char
+    */
+    constexpr bool IsSuffix( const char& inputC ) const
+    {
+        switch ( inputC )
+        {
+            case fSuffix:
+            case lSuffix:
+            case uSuffix:
+            case xSuffix:
+            case zSuffix:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+
+    /**
+    * @brief This is our enum for our
+    * literal format
+    */
+    enum class LiteralState: uint16_t
+    {
+        Start = 0,
+        Sign,
+        Integer,
+        Hex,
+        Percent,
+        Fraction,
+        Exponent,
+        ExpSign,
+        ExpInt,
+        SuffixMaj,
+        SuffixMin,
+        End,
+    };
+
+    /**
+    *@details
+    * f = float
+    * l = long
+    * u = unsigned
+    * z = ssize_t
+    * uz = size_t
+    * ll = long long
+    * ul = unsigned long
+    * ull unsigned long long
+    * lx unsigned long
+    * lxx unsigned long long
+    */
+    static constexpr auto exponentSym = 'e';
+    static constexpr auto capExponentSym = 'E';
+    static constexpr auto fSuffix = 'f';
+    static constexpr auto capFSuffix = 'F';
+    static constexpr auto lSuffix = 'l';
+    static constexpr auto capLSuffix = 'L';
+    static constexpr auto uSuffix = 'u';
+    static constexpr auto capUSuffix = 'U';
+    static constexpr auto xSuffix = 'x';
+    static constexpr auto capXSuffix = 'X';
+    static constexpr auto zSuffix = 'z';
+    static constexpr auto capZSuffix = 'Z';
+
 };
