@@ -1,3 +1,6 @@
+#include <iostream>
+#include <bitset>
+#include <cstring> 
 #include <print>
 #include <vector>
 #include <generator>
@@ -5,6 +8,10 @@
 #include <ranges>
 #include <span>
 #include <unordered_map>
+#include <numeric>
+#include <cassert>
+
+
 
 
 //Definition for singly-linked list.
@@ -661,20 +668,6 @@ public:
 private:
 
 };
-
-
-#include <iostream>
-#include <bitset>
-#include <cstring> 
-#include <print>
-#include <vector>
-#include <generator>
-#include <algorithm>
-#include <ranges>
-#include <span>
-#include <unordered_map>
-#include <numeric>
-#include <cassert>
 
 
 
